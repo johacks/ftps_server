@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "shadow.h": "c",
+        "utils.h": "c"
+    }
+}
