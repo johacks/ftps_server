@@ -5,24 +5,13 @@
  * @version 1.0
  * @date 17-03-2020
  * 
- * @copyright Copyright (c) 2020
  * 
  */
 #define _DEFAULT_SOURCE /*!< Macro de POSIX para algunas funciones */
 #define _GNU_SOURCE /*!< Para otras funciones */
-#include <stdlib.h>
-#include <unistd.h>
-#include <shadow.h>
-#include <pwd.h>
-#include <crypt.h>
-#include <stdio.h>
-#include <string.h>
-#include <grp.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/errno.h>
 #include "utils.h"
 #include "sha256.h"
+
 #define SHA_SIZE 256 /*!< Tamaño de sha */
 #define SALT_SZ 87 /*!< Tamaño de sal formateado maximo */
 #define MIN_SALT_SZ 2 /*!< Tamaño de una sal no formateada */
@@ -34,6 +23,37 @@ char salt[SALT_SZ];
 char server_user[MAX_USER_SZ] = "";
 int is_default_pass = 1;
 
+/**
+ * @brief Recoge una contraseña sin hacer echo por terminal
+ * 
+ * @param target donde se guardara el resultado
+ * @param n tamaño maximo
+ * @return ssize_t bytes leidos
+ */
+ssize_t get_password(char **target, size_t n)
+{
+    struct termios old, new;
+    int nread;
+    size_t tam = n;
+
+    /* Recoger valores actuales de la terminal y guardarlos en old */
+    if ( tcgetattr(fileno(stdin), &old) != 0 )
+        return -1;
+    /* Partiendo de old crear una nueva estructura con el echo desactivado */
+    new = old;
+    new.c_lflag &= ~ECHO;
+    /* Utilizar dicha estructura con el echo desactivado */
+    if ( tcsetattr(fileno(stdin), TCSAFLUSH, &new) != 0 )
+        return -1;
+
+    /* Leer contraseña */
+    nread = getline(target, &tam, stdin);
+
+    /* Recuperar valores antiguos de terminal */
+    tcsetattr(fileno (stdin), TCSAFLUSH, &old);
+
+    return nread;
+}
 
 /**
  * @brief Verifica que user es igual al nombre de usuario que ejecuta el proceso
@@ -55,9 +75,8 @@ int validate_user(char *user)
 size_t get_salt_sz(char *pass)
 {
     char *next;
-    size_t size;
 
-    /* Comprobar si es sal formateada */
+    /* Comprobar si es salt formateada */
     if ( pass[0] != SALT_END_CHAR)
         return MIN_SALT_SZ;
     /* Si no, pasar a siguiente campo */
@@ -72,7 +91,7 @@ size_t get_salt_sz(char *pass)
 }
 
 /**
- * @brief Establece unos credenciales, con valor por defecto los de el que ejecutaa el programa
+ * @brief Establece unos credenciales, con valor por defecto los de quien que ejecuta el programa
  * 
  * @param user Pasar NULL si se quiere usar usuario que ejecuta el programa
  * @param pass Pasar NULL si se quiere usar usuario que ejecuta el programa
@@ -82,9 +101,8 @@ int set_credentials(char *user, char *pass)
 {
     struct passwd *pw;
     struct spwd *sp;
-    char *encrypted, *correct, salt_end;
+    char *correct;
     SHA256_CTX sha;
-    size_t salt_sz;
 
     /* El usuario por defecto es el del que ejecuta el programa */
     if ( !user )
@@ -120,8 +138,8 @@ int set_credentials(char *user, char *pass)
 
     /* Se guarda una version en sha256 de la contraseña */
     sha256_init(&sha);
-    sha256_update(&sha, correct, strlen(correct));
-    sha256_final(&sha, hashed_pass);
+    sha256_update(&sha, (BYTE *) correct, strlen(correct));
+    sha256_final(&sha, (BYTE *) hashed_pass);
 
     return 1;
 }
@@ -150,8 +168,8 @@ int validate_pass(char *pass)
     
     /* Ahora ciframos lo anterior a sha_256 para compararlo con el sha_256 que se almacena */
     sha256_init(&sha);
-    sha256_update(&sha, shadow_crypted, strlen(shadow_crypted));
-    sha256_final(&sha, hashed);
+    sha256_update(&sha, (BYTE *) shadow_crypted, strlen(shadow_crypted));
+    sha256_final(&sha, (BYTE *) hashed);
 
     /* Comparar los hashes */
     return memcmp(hashed, hashed_pass, SHA256_BLOCK_SIZE) == 0;

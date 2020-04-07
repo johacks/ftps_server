@@ -1,2 +1,6 @@
 tests
-tests.c
+src/tests.c
+.vscode/
+vglogs/
+lib/lib_server.a
+ftps_server
