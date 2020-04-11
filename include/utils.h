@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <libgen.h>
 #include <stdarg.h>
 #include <unistd.h>
 #include <signal.h>
@@ -24,6 +25,7 @@
 #include <sys/stat.h> 
 #include <sys/param.h>
 #include <semaphore.h>
+#include <syslog.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <errno.h>
@@ -43,20 +45,14 @@
 #define XXXL_SZ 8192    /*!< Tamaño gigante */
 
 /**
- * @brief Imprime la cadena formateada de argumentos variables en stderr y cierra el proceso con exit(1)
- * 
- * @param formato Cadena de caracteres formateada
- * @param ... Parametros
- */
-void errexit(char *formato, ...);
-
-/**
  * @brief Tamaño de un fichero dado su descriptor
  * 
  * @param fd descriptor del fichero
  * @return size_t tamaño
  */
 size_t file_size(int fd);
+
+/* SEMAFOROS Y MEMORIA COMPARTIDA */
 
 /**
  * @brief Cierra un conjunto de semaforos
@@ -75,15 +71,6 @@ int close_semaphores(int n_sem, ...);
  * @return int 
  */
 int close_shm(int n_shm, ...);
-
-/**
- * @brief Crea un proceso demonio siguiendo el modelo de la funcion daemon de POSIX
- * 
- * @param nochdir Si 0, cambia el directorio a root
- * @param noclose Si 0, cierra salida, entrada estandar y stderr
- * @return int
- */
-int mi_daemon(int nochdir, int noclose);
 
 /**
  * @brief Crea un fichero shm y mapea en el buffer mapped
@@ -121,5 +108,42 @@ int open_shm(char *name, size_t size, void **mapped);
  * @return sem_t* (NULL si fallo)
  */
 sem_t *open_sem(char *name);
+
+/* LOGGING Y SALIDA ESTANDAR */
+
+/**
+ * @brief Indica la configuracion a utilizar en el logueo de mensajes
+ * 
+ * @param use_std Los mensajes se imprimen en salida estandar
+ * @param use_syslog Los mensajes se imprimen en el log del sistema 
+ * @param syslog_ident Especificar identificador en el log del sistema
+ */
+void set_log_conf(int use_std, int use_syslog, char *syslog_ident);
+
+/**
+ * @brief Loguea usando los argumentos
+ * 
+ * @param priority Prioridad en syslog si se va a usar syslog
+ * @param format Cadena formateada
+ * @param param Lista de argumentos
+ */
+void vflog(int priority, char *format, va_list param);
+
+/**
+ * @brief Loguea usando los argumentos
+ * 
+ * @param priority Prioridad en syslog si se va a usar syslog
+ * @param format Cadena formateada
+ * @param param Numero variable de argumentos
+ */
+void flog(int priority, char *format, ...);
+
+/**
+ * @brief Imprime la cadena formateada de argumentos variables y cierra el proceso con exit(1)
+ * 
+ * @param format Cadena de caracteres formateada
+ * @param ... Parametros
+ */
+void errexit(char *formato, ...);
 
 #endif /* UTILS_H */

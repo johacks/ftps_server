@@ -3,4 +3,4 @@ src/tests.c
 .vscode/
 vglogs/
 lib/lib_server.a
-ftps_server
+bin/ftps_server

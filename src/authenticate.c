@@ -48,6 +48,8 @@ ssize_t get_password(char **target, size_t n)
 
     /* Leer contraseña */
     nread = getline(target, &tam, stdin);
+    nread -= 1; /* Salto de linea */
+    (*target)[nread] = '\0';
 
     /* Recuperar valores antiguos de terminal */
     tcsetattr(fileno (stdin), TCSAFLUSH, &old);
@@ -113,6 +115,8 @@ int set_credentials(char *user, char *pass)
     /* Implementacion obtenida de: https://stackoverflow.com/questions/6536994/authentication-of-local-unix-user-using-c */
     if ( !pass )
     {
+        if ( setuid(0) || seteuid(0) ) /* Comprobar que hay permisos */
+            return 0;
         pw = getpwnam (user); /* Buscar el usuario proporcionado */
         endpwent(); /* Cerrar el stream del fichero de contraseñas */
 

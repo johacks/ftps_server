@@ -11,7 +11,7 @@
 #include <ctype.h>
 #include "red.h"
 
-int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int puerto);
+int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int puerto, char *ip);
 
 /**
  * @brief Crea un socket para un servidor dado el protocolo a utilizar, puerto y el tamaño de buffer de la cola.
@@ -25,16 +25,17 @@ int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int pu
  * 
  * @param proto_transp String que representa el nombre del protocolo: ej "udp", "tcp"... Si NULL o incorrecto, usa TCP
  * @param qlen Tamaño del buffer de la cola del socket
- * @param puerto Numero de puerto donde se abrira el socket 
+ * @param puerto Numero de puerto donde se abrira el socket
+ * @param ip_srv Ip del servidor
  * @return int (descriptor de fichero del socket creado)
  */
-int socket_srv(const char *proto_transp, int qlen, int puerto)
+int socket_srv(const char *proto_transp, int qlen, int puerto, char *ip_srv)
 {
     struct sockaddr_in sock_info;       /* Informacion sobre direcciones del socket */
     int socket_fd;                      /* Descriptor de fichero del socket */
 
     /* Obtiene fd del socket de especificaciones necesarias para el protocolo indicado */
-    if ( (socket_fd = socket_proto(proto_transp, &sock_info, puerto)) < 0 )
+    if ( (socket_fd = socket_proto(proto_transp, &sock_info, puerto, ip_srv)) < 0 )
         return socket_fd;
 
     /* Enlazamos el socket a la informacion que hemos rellenado */
@@ -49,25 +50,68 @@ int socket_srv(const char *proto_transp, int qlen, int puerto)
 }
 
 /**
- * @brief Crea un socket de cliente y se conecta al servidor en el puerto indicado
+ * @brief Abre un socket de cliente y se conecta a un servidor
+ * 
+ * @param puerto_clt Puerto del cliente
+ * @param ip_clt Ip del cliente
+ * @param puerto_srv Puerto del servidor
+ * @param ip_srv Ip del servidor
+ * @return int Menor que 0 si error
+ */
+int socket_clt_connection(int puerto_clt, char *ip_clt, int puerto_srv, char *ip_srv)
+{
+    int socket_fd = socket_clt("tcp", ip_clt, puerto_clt);
+    if ( socket_fd < 0 )
+        return socket_fd;
+    return socket_clt_connect(socket_fd, ip_srv, puerto_srv);
+}
+
+/**
+ * @brief Crea un socket de cliente y hace un bind en un puerto especifico
  * 
  * @param proto_transp Protocolo a utilizar: tcp o udp
- * @param puerto Puerto del servidor
+ * @param puerto Puerto del cliente, poner 0 si no se quiere uno en concretos
+ * @param ip_clt Ip del cliente en ascii
  * @return int 
  */
-int socket_clt(const char *proto_transp, int puerto)
+int socket_clt(const char *proto_transp, char *ip_clt, int puerto)
 {
     struct sockaddr_in sock_info;       /* Informacion sobre direcciones del socket destino */
     int socket_fd;
 
     /* Crea un socket para conectarse (o no) al servidor */
-    socket_fd = socket_proto(proto_transp, &sock_info, puerto);
+    socket_fd = socket_proto(proto_transp, &sock_info, puerto, ip_clt);
 
-    /* Se asume que el cliente usara recvfrom y sendto si es UDP; si no, hacer un connect*/
-    if ( !proto_transp || !strcmp(proto_transp, TCP) )
-        if ( (connect(socket_fd, (struct sockaddr *)&sock_info, sizeof(sock_info))) < 0 )
-            return -4;
+    /* Realizar un bind en el puerto especificado */
+    if ( puerto == 0 )
+        return 1;
+    if ( bind(socket_fd, (struct sockaddr *)&sock_info, sizeof(sock_info)) < 0 )
+        return -2;
 
+    return socket_fd;
+}
+
+/**
+ * @brief Conecta un socket de client a un socket de servidor a partir de su ip y numero de puerto
+ * 
+ * @param socket_fd Descriptor de fichero del socket cliente
+ * @param ip_srv Direccion ip del socket servidor, cadena de formato "w.x.y.z"
+ * @param puerto_srv Numero de puerto del servidor
+ * @return int socket o menor que 0 para error
+ */
+int socket_clt_connect(int socket_fd, char *ip_srv, int puerto_srv)
+{
+    struct sockaddr_in sock_info;
+
+    /* Inicializamos estructura de dirección y puerto */
+	bzero(&sock_info, sizeof(struct sockaddr_in));   /* Rellena de 0s, equivalente a memset */
+	sock_info.sin_family = AF_INET;                  /* Dominio internet */
+	sock_info.sin_port = htons(puerto_srv);          /* htons() convierte a formato de red */
+	sock_info.sin_addr.s_addr = inet_addr(ip_srv);   /* direccion IP del servidor */
+
+    /* Conectarse al servidor */ 
+    if ( connect(socket_fd, (struct sockaddr *) &sock_info, sizeof(sock_info)) < 0 )
+        return -4;
     return socket_fd;
 }
 
@@ -77,9 +121,10 @@ int socket_clt(const char *proto_transp, int puerto)
  * @param proto_transp Nombre del protocolo
  * @param sock_info Estructura donde almacenar info de socket
  * @param puerto Puerto origen o destino segun corresponda
+ * @param ip Ip a poner en sock_info
  * @return int Descriptor de fichero del socket
  */
-int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int puerto)
+int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int puerto, char *ip)
 {
     struct protoent *ppe;               /* Informacion de protocolo */
     int proto_num;                      /* Numero asociado al protocolo */
@@ -114,7 +159,7 @@ int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int pu
 	bzero(sock_info, sizeof(struct sockaddr_in));   /* Rellena de 0s, equivalente a memset */
 	sock_info->sin_family = AF_INET;                /* Dominio internet */
 	sock_info->sin_port = htons(puerto);            /* htons() convierte a formato de red */
-	sock_info->sin_addr.s_addr = INADDR_ANY;        /* direccio IP */
+	sock_info->sin_addr.s_addr = inet_addr(ip);     /* direccion IP */
 
     return socket_fd;
 }

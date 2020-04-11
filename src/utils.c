@@ -26,24 +26,7 @@ size_t file_size(int fd)
     return st.st_size;
 }
 
-/**
- * @brief Imprime la cadena formateada de argumentos variables en stderr y cierra el proceso con exit(1)
- * 
- * @param formato Cadena de caracteres formateada
- * @param ... Parametros
- */
-void errexit(char* formato, ...)
-{
-    if ( !formato )
-        return;
-    va_list param;
-
-    va_start(param, formato);
-    vfprintf(stderr, formato, param);
-    va_end(param);
-
-    exit(1);
-}
+/* SEMAFOROS Y MEMORIA COMPARTIDA */
 
 /**
  * @brief Cierra un conjunto de semaforos
@@ -190,4 +173,79 @@ sem_t *open_sem(char *name)
     if ((sem = sem_open(name, O_RDWR)) == SEM_FAILED)
         return NULL;
     return sem;
+}
+
+/* LOGGING Y SALIDA ESTANDAR */
+
+int _use_syslog = 0; /* Usar o no systemlog para imprimir los mensajes */
+int _use_std = 1; /* Usar o no salida estandar para imprimir los mensajes */
+
+/**
+ * @brief Indica la configuracion a utilizar en el logueo de mensajes
+ * 
+ * @param use_std Los mensajes se imprimen en salida estandar
+ * @param use_syslog Los mensajes se imprimen en el log del sistema 
+ * @param syslog_ident Especificar identificador en el log del sistema
+ */
+void set_log_conf(int use_std, int use_syslog, char *syslog_ident)
+{
+    _use_std = use_std;
+    _use_syslog = use_syslog;
+    if ( use_syslog )
+        openlog(syslog_ident, LOG_PID, LOG_FTP);
+    return;
+}
+
+/**
+ * @brief Loguea usando los argumentos
+ * 
+ * @param priority Prioridad en syslog si se va a usar syslog
+ * @param format Cadena formateada
+ * @param param Lista de argumentos
+ */
+void vflog(int priority, char *format, va_list param)
+{
+    if ( _use_std )
+        vprintf(format, param);
+    if ( _use_syslog )
+        vsyslog(priority, format, param);
+    return;
+}
+
+/**
+ * @brief Loguea usando los argumentos
+ * 
+ * @param priority Prioridad en syslog si se va a usar syslog
+ * @param format Cadena formateada
+ * @param param Numero variable de argumentos
+ */
+void flog(int priority, char *format, ...)
+{
+    if ( !format )
+        return;
+    va_list param;
+
+    va_start(param, format);
+    vflog(priority, format, param);
+    va_end(param);
+    return;
+}
+
+/**
+ * @brief Imprime la cadena formateada de argumentos variables y cierra el proceso con exit(1)
+ * 
+ * @param format Cadena de caracteres formateada
+ * @param ... Parametros
+ */
+void errexit(char* format, ...)
+{
+    if ( !format )
+        return;
+    va_list param;
+
+    va_start(param, format);
+    vflog(LOG_ERR, format, param);
+    va_end(param);
+
+    exit(1);
 }

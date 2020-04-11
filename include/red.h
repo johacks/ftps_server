@@ -46,19 +46,42 @@
  * 
  * @param proto_transp String que representa el nombre del protocolo: ej "udp", "tcp"... Si NULL o incorrecto, usa TCP
  * @param qlen Tamaño del buffer de la cola del socket
- * @param puerto Numero de puerto donde se abrira el socket 
+ * @param puerto Numero de puerto donde se abrira el socket
+ * @param ip_srv Ip del servidor
  * @return int (descriptor de fichero del socket creado)
  */
-int socket_srv(const char *proto_transp, int qlen, int puerto);
+int socket_srv(const char *proto_transp, int qlen, int puerto, char *ip_srv);
 
 /**
- * @brief Crea un socket de cliente y se conecta al servidor en el puerto indicado
+ * @brief Crea un socket de cliente y hace un bind en un puerto especifico
  * 
  * @param proto_transp Protocolo a utilizar: tcp o udp
- * @param puerto Puerto del servidor
+ * @param puerto Puerto del cliente, poner 0 si no se quiere uno en concretos
+ * @param ip_clt Ip del cliente en ascii
  * @return int 
  */
-int socket_clt(const char *proto_transp, int puerto);
+int socket_clt(const char *proto_transp, char *ip_clt, int puerto);
+
+/**
+ * @brief Conecta un socket de client a un socket de servidor a partir de su ip y numero de puerto
+ * 
+ * @param socket_fd Descriptor de fichero del socket cliente
+ * @param ip_srv Direccion ip del socket servidor, cadena de formato "w.x.y.z"
+ * @param puerto_srv Numero de puerto del servidor
+ * @return int 
+ */
+int socket_clt_connect(int socket_fd, char *ip_srv, int puerto_srv);
+
+/**
+ * @brief Abre un socket de cliente y se conecta a un servidor
+ * 
+ * @param puerto_clt Puerto del cliente
+ * @param ip_clt Ip del cliente
+ * @param puerto_srv Puerto del servidor
+ * @param ip_srv Ip del servidor
+ * @return int Menor que 0 si error
+ */
+int socket_clt_connection(int puerto_clt, char *ip_clt, int puerto_srv, char *ip_srv);
 
 /**
  * @brief Escribe en un socket el contenido del fichero src_fd

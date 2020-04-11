@@ -8,14 +8,15 @@ D=doc/
 S=src/
 H=include/
 SL=srclib/
-DIRECTORIES=$(O) $(L) $(D) $(S) $(H) $(SL)
+B=bin/
+DIRECTORIES=$(O) $(L) $(D) $(S) $(H) $(SL) $(B)
 
 # Compilacion y ejecucion con valgrind
 CC=gcc
 VGLOGS=vglogs/
 VFLAGS= --leak-check=full --show-leak-kinds=all --log-file=$(VGLOGS)log%p.txt --trace-children=yes --track-origins=yes
 CFLAGS= -g -Wall -I $(L) -I $(H) -I $(SL)
-EXE=ftps_server
+EXE=$(B)ftps_server
 
 # Librerias
 
@@ -26,11 +27,11 @@ SHA_LIB=$(L)sha256.a
 EXT_LIB=$(PRS_LIB) $(SHA_LIB)
 
 # Internas
-INT_LIB_O=$(O)red.o $(O)authenticate.o $(O)utils.o
+INT_LIB_O=$(O)red.o $(O)authenticate.o $(O)utils.o $(O)config_parser.o $(O)ftp.o
 INT_LIB=$(L)lib_server.a
 
 # Uso de librerias
-LNK_LIB=-pthread -lrt -L./lib -Lconfuse
+LNK_LIB=-pthread -lcrypt -lrt -L./lib -Lconfuse
 LIB=$(INT_LIB) $(LNK_LIB) $(EXT_LIB)
 
 ########################################################
@@ -52,6 +53,12 @@ $(O)authenticate.o: $(S)authenticate.c $(H)authenticate.h
 $(O)utils.o: $(S)utils.c $(H)utils.h
 	$(CC) $(CFLAGS) -c $< -o $@ $(LNK_LIB)
 
+$(O)config_parser.o: $(S)config_parser.c $(H)config_parser.h
+	$(CC) $(CFLAGS) -c $< -o $@ $(LNK_LIB)
+
+$(O)ftp.o: $(S)ftp.c $(H)ftp.h
+	$(CC) $(CFLAGS) -c $< -o $@ $(LNK_LIB)
+
 # LIBRERIA EXTERNA
 
 # Libreria sha
@@ -67,9 +74,9 @@ $(O)sha256.o: $(SL)sha256.c
 
 # BINARIOS
 
-# Programa principal
+# Programa principal, necesita acceso a puertos
 
-ftps_server: $(S)ftps_server.c $(INT_LIB) $(EXT_LIB)
+$(B)ftps_server: $(S)ftps_server.c $(INT_LIB) $(EXT_LIB)
 	$(CC) $(CFLAGS) $< -o $@ $(LIB)
 
 # TARGETS DE UTILIDAD
