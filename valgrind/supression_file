@@ -1,0 +1,6 @@
+{
+  leak-falso-hilos
+  Memcheck:Leak
+  fun:calloc
+  fun:pthread_create
+}

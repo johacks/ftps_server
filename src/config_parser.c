@@ -17,6 +17,7 @@ int get_server_root(serverconf *server_conf, cfg_t *cfg);
 int get_ftp_user(serverconf *server_conf, cfg_t *cfg);
 int get_max_passive_ports(serverconf *server_conf, cfg_t *cfg);
 int get_ftp_host(serverconf *server_conf, cfg_t *cfg);
+int get_max_sessions(serverconf *server_conf, cfg_t *cfg);
 
 /**
  * @brief Parsea la informacion del fichero server.conf para configurar el servidor al iniciarse
@@ -33,6 +34,7 @@ int parse_server_conf(serverconf *server_conf)
         */
         CFG_STR(SERVER_ROOT, SERVER_ROOT_DEFAULT, CFGF_NONE),	
         CFG_INT(MAX_PASSIVE_PORTS, MAX_PASSIVE_PORTS_DEFAULT, CFGF_NONE),
+        CFG_INT(MAX_SESSIONS, MAX_SESSIONS_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_USER, FTP_USER_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_HOST, FTP_HOST_DEFAULT, CFGF_NONE),
         CFG_END()
@@ -48,7 +50,8 @@ int parse_server_conf(serverconf *server_conf)
     int res = 1 - 2 * (int) (get_server_root(server_conf, cfg) < 0
                           || get_ftp_user(server_conf, cfg) < 0
                           || get_max_passive_ports(server_conf, cfg) < 0
-                          || get_ftp_host(server_conf, cfg) < 0);
+                          || get_ftp_host(server_conf, cfg) < 0
+                          || get_max_sessions(server_conf, cfg) < 0);
     cfg_free(cfg);
     return res;
 }
@@ -120,8 +123,24 @@ int get_max_passive_ports(serverconf *server_conf, cfg_t *cfg)
 {
     server_conf->max_passive_ports = cfg_getint(cfg, MAX_PASSIVE_PORTS);
     /* CdE: tiene que permitirse al menos un puerto en modo pasivo */
-    if (server_conf->max_passive_ports <= 0)
+    if ( server_conf->max_passive_ports <= 0 )
         server_conf->max_passive_ports = MAX_PASSIVE_PORTS_DEFAULT;
+    return 1;
+}
+
+/**
+ * @brief Recoge y limpia max sessions
+ * 
+ * @param server_conf Estructura de configuracion
+ * @param cfg Resultados del parseo
+ * @return int menor que 0 si error
+ */
+int get_max_sessions(serverconf *server_conf, cfg_t *cfg)
+{
+    server_conf->max_sessions = cfg_getint(cfg, MAX_SESSIONS);
+    /* CdE: tiene que permitirse al menos una sesion */
+    if ( server_conf->max_sessions <= 0 )
+        server_conf->max_sessions = MAX_SESSIONS_DEFAULT;
     return 1;
 }
 

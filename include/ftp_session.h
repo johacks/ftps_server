@@ -16,7 +16,7 @@
 #define MAX_PATH MEDIUM_SZ + 1
 #define MAX_ATTRIBUTES SMALL_SZ
 #define MAX_ATTRIBUTE_NAME SMALL_SZ
-#define POWER_OF_TWO(x) (1 << (x)) /*!< Elevar al cuadrado */
+#define POWER_OF_TWO(x) (((uintptr_t) 1) << (x)) /*!< Elevar al cuadrado */
 #define ATTR_NOT_FOUND POWER_OF_TWO(8*sizeof(uintptr_t)-1)*-1 /*!< Valor minimo de uintptr_t */ 
 
 /**
@@ -28,7 +28,7 @@ typedef struct _attribute
     char name[MAX_ATTRIBUTE_NAME]; /*!< Nombre del atributo */
     uintptr_t val; /*!< Puede ser o un puntero, o un entero con signo de 8 bytes, segun convenga */
     char freeable; /*!< Indica si el atributo puede liberarse */
-    unsigned char expire; /*!< Indica por cuantas peticiones a control pasa antes de desaparecer de la sesion */
+    short expire; /*!< Indica por cuantas peticiones a control pasa antes de desaparecer de la sesion */
 } attribute;
 
 /**
@@ -41,6 +41,7 @@ typedef struct _session_info
     char current_dir[MAX_PATH]; /*!< Directorio actual del usuario de la sesion */
     int n_attributes; /*!< Cantidad de atributos actualmente en sesion */
     attribute attributes[MAX_ATTRIBUTES]; /*!< Atributos variables de la sesion */
+    int clt_fd; /*!< Descriptor de fichero del cliente (conexion de control) */
 } session_info;
 
 /**
@@ -54,7 +55,7 @@ typedef struct _session_info
  * @return uintptr_t Si el atributo ya estaba y no se puede liberar, devuelve el valor anterior,
  *         si no, devuelve ATTR_NOT_FOUND
  */
-uintptr_t set_attribute(session_info *session, char *name, uintptr_t val, char freeable, unsigned char expiration);
+uintptr_t set_attribute(session_info *session, char *name, uintptr_t val, char freeable, short expiration);
 
 /**
  * @brief Recoger un atributo
@@ -80,4 +81,7 @@ int free_attributes(session_info *session);
  * @param previous_session Sesion FTP a anterior de la que se heredan los atributos
  */
 void init_session_info(session_info *session, session_info *previous_session);
+
+/* ATRIBUTOS UTILIZADOS */
+#define USERNAME_ATTR "username"
 #endif

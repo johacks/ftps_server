@@ -40,7 +40,6 @@ C(TYPE) /*!< Indicar tipo de transmision de datos: ascii o binario */      \
 C(USER) /*!< Indicar nombre de usuario */
 
 #define C(x) x,
-
 /**
  * @brief Lista de comandos que implementa el servidor
  * 
@@ -117,4 +116,12 @@ char *get_ign_command_name(ign_commands command);
  */
 void parse_ftp_command(request_info *ri, char *buff);
 
+/* RESPUESTAS DEL SERVIDOR POR EL PUERTO DE CONTROL */
+#define CODE_220_WELCOME_MSG "220 Bienvenido a mi servidor FTP\n" /*!< Mensaje de bienvenida al servidor */
+#define CODE_230_AUTH_OK "230 Autenticacion correcta\n" /*!< Usuario y contraseña correctos */
+#define CODE_331_PASS "331 Introduzca la contraseña\n" /*!< Se necesita una contraseña */
+#define CODE_430_INVALID_AUTH "430 Usuario o contraseña incorrectos\n" /*!< Error de autenticacion */
+#define CODE_501_UNKNOWN_CMD_MSG "501 Error de sintaxis en los argumentos\n" /*!< Argumento no reconocido */
+#define CODE_502_NOT_IMP_CMD_MSG "502 Comando no implementado\n" /*!< Comando no implementado */
+#define CODE_503_BAD_SEQUENCE "503 Secuencia incorrecta de comandos\n" /*!< Recibidos comandos en desorden */
 #endif

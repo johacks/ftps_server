@@ -34,7 +34,7 @@ void init_session_info(session_info *session, session_info *previous_session)
         attribute *attr = &(session->attributes[session->n_attributes]), *p_attr = &(previous_session->attributes[i]);
         attr->expire = p_attr->expire - 1;
         /* Si el atributo no expira, lo rellenamos */
-        if ( attr->expire )
+        if ( attr->expire >= 0 )
         {
             session->n_attributes++;
             strcpy(attr->name, p_attr->name);
@@ -59,13 +59,13 @@ void init_session_info(session_info *session, session_info *previous_session)
  * @return uintptr_t Si el atributo ya estaba y no se puede liberar, devuelve el valor anterior,
  *         (tras sobreescribirlo) si no, devuelve ATTR_NOT_FOUND
  */
-uintptr_t set_attribute(session_info *session, char *name, uintptr_t val, char freeable, unsigned char expiration)
+uintptr_t set_attribute(session_info *session, char *name, uintptr_t val, char freeable, short expiration)
 {
     attribute *current_attr = &(session->attributes[0]);
     int i;
     /* Buscar la posicion a reemplazar */
     for (   i = 0;
-            i <= session->n_attributes && strncmp(current_attr->name, name, MAX_ATTRIBUTE_NAME);
+            i < session->n_attributes && strncmp(current_attr->name, name, MAX_ATTRIBUTE_NAME);
             current_attr = &(session->attributes[++i]));
     
     current_attr->expire = expiration;
@@ -82,6 +82,8 @@ uintptr_t set_attribute(session_info *session, char *name, uintptr_t val, char f
         return prev;
     }
     /* Nuevo atributo */
+    session->n_attributes++;
+    current_attr->val = val;
     current_attr->freeable = freeable;
     strcpy(current_attr->name, name);
     return ATTR_NOT_FOUND;

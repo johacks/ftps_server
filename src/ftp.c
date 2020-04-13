@@ -162,12 +162,12 @@ char *get_ign_command_name(ign_commands command)
 void parse_ftp_command(request_info *ri, char *buff)
 {
     /* Reoger el comando */
-    size_t len = strcspn(buff, " \n");
+    size_t len = strcspn(buff, " \r\n");
     strncpy(ri->command_name, buff, len);
     ri->command_name[len] = '\0';
     /* Recoger el argumento, si lo hay */
     buff = &buff[len + 1];
-    len = strcspn(buff, "\n");
+    len = strcspn(buff, "\r\n");
     strncpy(ri->command_arg, buff, len);
     ri->command_arg[len] = '\0';
     /* Recoger el enum asociado al comando, primero buscar en la lista de implementados */

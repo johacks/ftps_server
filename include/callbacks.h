@@ -1,57 +1,43 @@
 /**
  * @file callbacks.h
- * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es); 
+ * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es);; 
  * @brief Definicion de los callbacks asociados a los comandos ftp
  * @version 1.0
  * @date 12-04-2020
  * 
- * @copyright Copyright (c) 2020
+ * @copyright Copyright (c); 2020
  * 
  */
 
 #ifndef CALLBACKS_H
 #define CALLBACKS_H
 #include "utils.h"
+#include "config_parser.h"
 #include "ftp_session.h"
+#define CALLBACK_ARGUMENTS serverconf*, session_info*, request_info* /*!< Argumentos de un callback */
+#define CALLBACK_RET uintptr_t /*!< Tipo de retorno de un callback */
+#define CALLBACK_RET_END_CONNECTION -1 /*!< Indicar que la conexion al socket deberia cerrarse */
+#define CALLBACK_RET_PROCEED 0 /*!< Indicar que se siguen aceptando conexiones */
 
-void *cdup_cb(void *info, void* info_out);
+/**
+ * @brief Define el tipo callback
+ * 
+ */
+typedef CALLBACK_RET (*callback)(CALLBACK_ARGUMENTS);
 
-void *cwd_cb(void *info, void* info_out);
+/* Generacion automatica de un callback para cada comando implementado segun el enum */
+#define C(x) CALLBACK_RET x ## _cb (CALLBACK_ARGUMENTS);
+IMPLEMENTED_COMMANDS
+#undef C
 
-void *help_cb(void *info, void* info_out);
-
-void *mkd_cb(void *info, void* info_out);
-
-void *pass_cb(void *info, void* info_out);
-
-void *rnto_cb(void *info, void* info_out);
-
-void *list_cb(void *info, void* info_out);
-
-void *pasv_cb(void *info, void* info_out);
-
-void *dele_cb(void *info, void* info_out);
-
-void *port_cb(void *info, void* info_out);
-
-void *pwd_cb(void *info, void* info_out);
-
-void *quit_cb(void *info, void* info_out);
-
-void *retr_cb(void *info, void* info_out);
-
-void *rmd_cb(void *info, void* info_out);
-
-void *rmda_cb(void *info, void* info_out);
-
-void *stor_cb(void *info, void* info_out);
-
-void *rnfr_cb(void *info, void* info_out);
-
-void *size_cb(void *info, void* info_out);
-
-void *type_cb(void *info, void* info_out);
-
-void *user_cb(void *info, void* info_out);
+/**
+ * @brief Llama al callback correspondiente a un comando
+ * 
+ * @param server_conf Configuracion general del servidor, solo lectura
+ * @param session Valor de la sesion tras el ultimo comando
+ * @param command Comando que genera el callback, conteniendo un posible argumento
+ * @return uintptr_t Posible valor de retorno, que seria o un puntero o un entero
+ */
+uintptr_t command_callback(serverconf *server_conf, session_info *session, request_info *command);
 
 #endif

@@ -175,6 +175,9 @@ int validate_pass(char *pass)
     sha256_update(&sha, (BYTE *) shadow_crypted, strlen(shadow_crypted));
     sha256_final(&sha, (BYTE *) hashed);
 
+    if ( is_default_pass ) /* Crypt requiere de free */
+        free(shadow_crypted);
+
     /* Comparar los hashes */
     return memcmp(hashed, hashed_pass, SHA256_BLOCK_SIZE) == 0;
 }
