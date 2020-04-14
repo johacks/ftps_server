@@ -37,6 +37,8 @@ typedef struct _attribute
  */
 typedef struct _session_info
 {
+    int passive_mode; /*!< Indica que se hacen las transmisiones en modo pasivo */
+    int ascii_mode; /*!< Indica que se hace la transmision de ficheros en modo ascii */
     int authenticated; /*!< Indica si el usuario de la sesion ya ha sido autenticado correctamente */
     char current_dir[MAX_PATH]; /*!< Directorio actual del usuario de la sesion */
     int n_attributes; /*!< Cantidad de atributos actualmente en sesion */

@@ -121,6 +121,8 @@ void *ftp_session_loop(void *args)
     request_info ri;
     intptr_t clt_fd = (intptr_t) args, cb_ret = CALLBACK_RET_PROCEED;
     s1.clt_fd = s2.clt_fd = clt_fd;
+    current->passive_mode = 0; /* TODO: fichero de configuracion */
+    current->ascii_mode = 1;
 
     init_session_info(current, NULL); /* Iniciar estructura de sesion con valores por defecto */
 

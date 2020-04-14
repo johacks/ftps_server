@@ -28,7 +28,10 @@ void init_session_info(session_info *session, session_info *previous_session)
     }
     /* Heredar atributos de la sesion anterior */
     session->authenticated = previous_session->authenticated;
+    session->ascii_mode = previous_session->ascii_mode;
+    session->passive_mode = previous_session->ascii_mode;
     strcpy(session->current_dir, previous_session->current_dir);
+    /* Heredar atributos volatiles de la sesiona anterior */
     for ( int i = 0; i < previous_session->n_attributes; i++)
     {
         attribute *attr = &(session->attributes[session->n_attributes]), *p_attr = &(previous_session->attributes[i]);

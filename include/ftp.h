@@ -27,9 +27,9 @@ C(RNTO) /*!< Indicar que nombre tendra dicho fichero */                    \
 C(LIST) /*!< Mostrar archivos del directorio actual */                     \
 C(PASV) /*!< Iniciar conexion de datos en modo pasivo */                   \
 C(DELE) /*!< Borrar fichero */                                             \
-C(PORT) /*!< Indicar al servidor */                                        \
+C(PORT) /*!< Indicar al servidor puerto de datos de cliente */             \
 C(PWD)  /*!< Indicar directorio actual */                                  \
-C(QUIT) /*!< Cerrar conexiom */                                            \
+C(QUIT) /*!< Cerrar conexion */                                            \
 C(RETR) /*!< Pedir copia de fichero */                                     \
 C(RMD)  /*!< Borrar un directorio */                                       \
 C(RMDA) /*!< Borrar el arbol de un directorio */                           \
