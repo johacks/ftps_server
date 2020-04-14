@@ -38,8 +38,8 @@ int end = 0; /*!< Indica que hay que finalizar el programa */
 int main(int argc, char *argv[])
 {
     /* Comprobacion un poco burda de que la ejecucion debe ser con authbind */
-    // if (!(argc == 2 && !strcmp(argv[1], USING_AUTHBIND)))
-    //     execlp("authbind", "authbind", argv[0], USING_AUTHBIND, NULL);
+    if (!(argc == 2 && !strcmp(argv[1], USING_AUTHBIND)))
+        execlp("authbind", "authbind", argv[0], USING_AUTHBIND, NULL);
 
     /* Leer la configuracion del servidor */
     if ( parse_server_conf(&server_conf) < 0 )
@@ -58,6 +58,9 @@ int main(int argc, char *argv[])
 
     /* Establecer configuracion de logueo */
     set_log_conf(1, 0, NULL);
+
+    /* Entrar en modo demonio si se ha indicado */
+    if ( modo_daemon ) daemon(1, 0);
 
     /* Loop de aceptacion de peticiones en control */
     accept_loop(socket_control_fd);
@@ -167,7 +170,7 @@ void set_ftp_credentials()
         if ( !set_credentials(NULL, NULL) ) 
             errexit("Fallo al establecer credenciales de usuario que ejecuta el programa. Comprobar permisos de root\n");
         /* Quitarnos permisos de superusuario si los teniamos */
-        // drop_root_privileges();
+        drop_root_privileges();
     }
     else /* Pedir una contraseña para el usuario proporcionado */
     {

@@ -4,6 +4,7 @@
         "utils.h": "c",
         "sha256.h": "c",
         "authenticate.h": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "paths.h": "c"
     }
 }
