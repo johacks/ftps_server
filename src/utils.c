@@ -18,12 +18,39 @@
 size_t file_size(int fd)
 {
     struct stat st;
-
-    if (fd < 0)
+    if ( fd < 0 || fstat(fd, &st) == -1 )
         return -1;
-    fstat(fd, &st);
-    
     return st.st_size;
+}
+
+/**
+ * @brief Tamaño de un fichero dado su nombre
+ * 
+ * @param path Nombre del fichero
+ * @return size_t tamaño
+ */
+size_t name_file_size(char *path)
+{
+    struct stat st;
+    if ( !path || stat(path, &st) == -1 )
+        return -1;
+    return st.st_size;
+}
+
+/**
+ * @brief Str es un numero entero
+ * 
+ * @param str String
+ * @param len Tamaño a parsear, si se quiere llamar a strlen, poner menor que 0
+ * @return int 
+ */
+int is_number(char *str, int len)
+{
+    len = (len < 0) ? strlen(str) : len;
+    for ( int i = 0; i < len; i++ )
+        if ( !isdigit(str[i]) )
+            return 0;
+    return 1;
 }
 
 /* SEMAFOROS Y MEMORIA COMPARTIDA */

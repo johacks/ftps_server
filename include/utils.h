@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <time.h>
+#include <ctype.h>
 #include <string.h>
 #include <strings.h>
 #include <libgen.h>
@@ -53,6 +54,23 @@
  * @return size_t tamaño
  */
 size_t file_size(int fd);
+
+/**
+ * @brief Tamaño de un fichero dado su nombre
+ * 
+ * @param path Nombre del fichero
+ * @return size_t tamaño
+ */
+size_t name_file_size(char *path);
+
+/**
+ * @brief Str es un numero entero
+ * 
+ * @param str String
+ * @param len Tamaño a parsear, si se quiere llamar a strlen, poner menor que 0
+ * @return int 
+ */
+int is_number(char *str, int len);
 
 /* SEMAFOROS Y MEMORIA COMPARTIDA */
 

@@ -125,6 +125,8 @@ int get_max_passive_ports(serverconf *server_conf, cfg_t *cfg)
     /* CdE: tiene que permitirse al menos un puerto en modo pasivo */
     if ( server_conf->max_passive_ports <= 0 )
         server_conf->max_passive_ports = MAX_PASSIVE_PORTS_DEFAULT;
+    /* Semaforo de puertos abiertos */
+    sem_init(&(server_conf->free_passive_ports), 0, server_conf->max_passive_ports);
     return 1;
 }
 

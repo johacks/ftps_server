@@ -15,6 +15,9 @@
 
 #define MAX_FTP_COMMAND_NAME 4
 #define MAX_COMMAND_ARG MEDIUM_SZ
+#define MAX_COMMAND_RESPOSE XXL_SZ
+#define FTP_CONTROL_PORT 21
+#define FTP_DATA_PORT 20
 
 /* Enum de strings en C: https://stackoverflow.com/questions/9907160/how-to-convert-enum-names-to-string-in-c */
 #define IMPLEMENTED_COMMANDS                                               \
@@ -74,6 +77,8 @@ typedef struct _request_info
     ign_commands ignored_command;
     char command_name[MAX_FTP_COMMAND_NAME + 4];
     char command_arg[MAX_COMMAND_ARG + 1];
+    char response[MAX_COMMAND_RESPOSE];
+    int response_len;
 } request_info;
 
 /**
@@ -116,12 +121,33 @@ char *get_ign_command_name(ign_commands command);
  */
 void parse_ftp_command(request_info *ri, char *buff);
 
+/**
+ * @brief Establece una respuesta a un comando
+ * 
+ * @param ri Estructura de informacion de una peticion 
+ * @param response Respuesta a la peticion
+ * @param ... Formateado
+ * @return int tamaño de respuesta
+ */
+int set_command_response(request_info *ri, char *response, ...);
+
 /* RESPUESTAS DEL SERVIDOR POR EL PUERTO DE CONTROL */
+
+#define CODE_200_OP_OK "200 Operacion correcta\n" /*!< Mensaje de exito */
+#define CODE_213_FILE_SIZE "213 Tamaño de archivo: %ldB\n" /*!< Tamaño de archivo */
 #define CODE_220_WELCOME_MSG "220 Bienvenido a mi servidor FTP\n" /*!< Mensaje de bienvenida al servidor */
+#define CODE_221_GOODBYE_MSG "221 Hasta la visa\n" /*!< Despedir al cliente */
 #define CODE_230_AUTH_OK "230 Autenticacion correcta\n" /*!< Usuario y contraseña correctos */
+#define CODE_25O_FILE_OP_OK "250 Operacion sobre archivo correcta\n" /*!< Operacion realizada sobre archivo correcta */
+
 #define CODE_331_PASS "331 Introduzca la contraseña\n" /*!< Se necesita una contraseña */
+#define CODE_350_RNTO_NEEDED "350 Necesario nuevo nombre\n" /*!< Pedir nombre al que se renombra el fichero */
+
 #define CODE_430_INVALID_AUTH "430 Usuario o contraseña incorrectos\n" /*!< Error de autenticacion */
+
 #define CODE_501_UNKNOWN_CMD_MSG "501 Error de sintaxis en los argumentos\n" /*!< Argumento no reconocido */
 #define CODE_502_NOT_IMP_CMD_MSG "502 Comando no implementado\n" /*!< Comando no implementado */
 #define CODE_503_BAD_SEQUENCE "503 Secuencia incorrecta de comandos\n" /*!< Recibidos comandos en desorden */
+#define CODE_530_NO_LOGIN "530 Usuario no logueado\n" /* Exige usuario logueado */
+#define CODE_550_NO_ACCESS "550 No se puede acceder al archivo\n" /* Sin acceso a archivo */
 #endif

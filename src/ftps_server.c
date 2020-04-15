@@ -16,12 +16,12 @@
 #include "callbacks.h"
 #include "ftp_session.h"
 #include "config_parser.h"
+#include "ftp_files.h"
 
 #define MAX_PASSWORD MEDIUM_SZ
-#define FTP_CONTROL_PORT 21
-#define FTP_DATA_PORT 20
 #define USING_AUTHBIND "--using-authbind"
 #define THREAD_CLOSE_WAIT 2 /*!< Maximo de tiempo que se espera que se cierre un hilo */
+#define DEBUG
 
 void free_resources(int socket_control_fd, int socket_data_fd);
 void accept_loop(int socket_control_fd);
@@ -38,12 +38,17 @@ int end = 0; /*!< Indica que hay que finalizar el programa */
 int main(int argc, char *argv[])
 {
     /* Comprobacion un poco burda de que la ejecucion debe ser con authbind */
+    #ifndef DEBUG
     if (!(argc == 2 && !strcmp(argv[1], USING_AUTHBIND)))
         execlp("authbind", "authbind", argv[0], USING_AUTHBIND, NULL);
+    #endif
 
     /* Leer la configuracion del servidor */
     if ( parse_server_conf(&server_conf) < 0 )
         errexit("Fallo al procesar fichero de configuracion\n");
+
+    /* Establecer root path del servidor */
+    set_root_path(server_conf.server_root);
 
     /* Establecer los credenciales del servidor y quitarse permisos de root si fueron dados */
     set_ftp_credentials();
@@ -125,6 +130,7 @@ void *ftp_session_loop(void *args)
     current->ascii_mode = 1;
 
     init_session_info(current, NULL); /* Iniciar estructura de sesion con valores por defecto */
+    strcpy(current->current_dir, server_conf.server_root);
 
     /* Bucle principal de la sesion */
     while( !end && cb_ret != CALLBACK_RET_END_CONNECTION )
@@ -138,13 +144,15 @@ void *ftp_session_loop(void *args)
             send(clt_fd, CODE_501_UNKNOWN_CMD_MSG, sizeof(CODE_501_UNKNOWN_CMD_MSG), 0);
         else if ( ri.implemented_command == -1 ) /* Comando reconocido pero no implementado */
             send(clt_fd, CODE_502_NOT_IMP_CMD_MSG, sizeof(CODE_502_NOT_IMP_CMD_MSG), 0);
-        else /* Comando implementado, llamar al callback */
+        else /* Comando implementado, llamar al callback y devolver respuesta */
         {
-           cb_ret = command_callback(&server_conf, current, &ri);
-           aux = previous;
-           previous = current;
-           current = aux; /* Sesion actual pasa a ser la sesion previa */
-           init_session_info(current, previous); /* La rellenamos a partir de la anterior quitando atributos que expiran */ 
+            cb_ret = command_callback(&server_conf, current, &ri);
+            if ( cb_ret == CALLBACK_RET_PROCEED  || ri.implemented_command == QUIT)
+                send(clt_fd, ri.response, ri.response_len, (cb_ret != CALLBACK_RET_PROCEED) & MSG_DONTWAIT);
+            aux = previous;
+            previous = current;
+            current = aux; /* Sesion actual pasa a ser la sesion previa */
+            init_session_info(current, previous); /* La rellenamos a partir de la anterior quitando atributos que expiran */ 
         }
     }
     /* Liberar los atributos de sesion y cerrar la conexion */
@@ -172,7 +180,9 @@ void set_ftp_credentials()
         if ( !set_credentials(NULL, NULL) ) 
             errexit("Fallo al establecer credenciales de usuario que ejecuta el programa. Comprobar permisos de root\n");
         /* Quitarnos permisos de superusuario si los teniamos */
+        #ifndef DEBUG
         drop_root_privileges();
+        #endif
     }
     else /* Pedir una contraseña para el usuario proporcionado */
     {

@@ -27,7 +27,7 @@ SHA_LIB=$(L)sha256.a
 EXT_LIB=$(PRS_LIB) $(SHA_LIB)
 
 # Internas
-INT_LIB_O=$(O)red.o $(O)authenticate.o $(O)utils.o $(O)config_parser.o $(O)ftp.o $(O)callbacks.o $(O)ftp_session.o
+INT_LIB_O=$(O)red.o $(O)authenticate.o $(O)utils.o $(O)config_parser.o $(O)ftp.o $(O)callbacks.o $(O)ftp_session.o $(O)ftp_files.o
 INT_LIB=$(L)lib_server.a
 
 # Uso de librerias
@@ -63,6 +63,9 @@ $(O)callbacks.o: $(S)callbacks.c $(H)callbacks.h
 	$(CC) $(CFLAGS) -c $< -o $@ $(LNK_LIB)
 
 $(O)ftp_session.o: $(S)ftp_session.c $(H)ftp_session.h
+	$(CC) $(CFLAGS) -c $< -o $@ $(LNK_LIB)
+
+$(O)ftp_files.o: $(S)ftp_files.c $(H)ftp_files.h
 	$(CC) $(CFLAGS) -c $< -o $@ $(LNK_LIB)
 
 

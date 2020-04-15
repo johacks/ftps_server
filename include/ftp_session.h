@@ -85,5 +85,6 @@ int free_attributes(session_info *session);
 void init_session_info(session_info *session, session_info *previous_session);
 
 /* ATRIBUTOS UTILIZADOS */
-#define USERNAME_ATTR "username"
+#define USERNAME_ATTR "usr" /*!< Nombre de usuario de un comando USER */
+#define RENAME_FROM_ATTR "rnfr" /*!< Nombre de fichero a renombrar */
 #endif

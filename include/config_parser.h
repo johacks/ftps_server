@@ -30,6 +30,7 @@ typedef struct _serverconf
 {
     char server_root[SERVER_ROOT_MAX]; /*!< Root del path donde se buscan los ficheros */
     int max_passive_ports; /*!< Numero maximo de puertos que se pueden abrir en modo pasivo */
+    sem_t free_passive_ports; /*!< Cuantos mas puertos de datos se pueden abrir */
     char ftp_user[FTP_USER_MAX]; /*!< Nombre de usuario asociado al servidor ftp */
     char ftp_host[FTP_HOST_MAX]; /*!< Host donde se desplegara el servidor */
     int max_sessions; /*!< Maximo de sesiones FTP concurrentes */

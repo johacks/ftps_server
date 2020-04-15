@@ -15,6 +15,8 @@
 #include "ftp.h"
 #include "config_parser.h"
 #define SEND_BUFFER 2048
+#define IP_LEN sizeof("xxx.xxx.xxx.xxx")
+#define IP_FIELD_LEN sizeof("xxx")
 
 static char root[SERVER_ROOT_MAX] = "";
 static size_t root_size; 
@@ -41,7 +43,7 @@ void set_root_path(char *server_root)
  */
 int get_real_path(char *current_dir, char *path, char *real_path)
 {
-    char buff = alloca((strlen(current_dir) + strlen(path) + 1)*sizeof(char)); /* 'Alloca' libera memoria de funcion automaticamente */
+    char *buff = alloca((strlen(current_dir) + strlen(path) + 1)*sizeof(char)); /* 'Alloca' libera memoria de funcion automaticamente */
     if ( !buff ) return -1;
 
     /* Si el path dado es relativo, usaremos el directorio actual */
@@ -57,16 +59,31 @@ int get_real_path(char *current_dir, char *path, char *real_path)
         strcpy(buff, root);
         strcat(buff, path);
     }
-    
-    /* El siguiente paso es resolver el path */
-    if ( !realpath(buff, real_path) ) return -2;
+
+    int ret = 1;
+    if ( !realpath(buff, real_path) )
+    {
+        if ( errno != ENOENT )
+            return -2;
+        char *buff2 = alloca(strlen(buff) + 1);
+        if ( !buff2 ) return -1;
+        strcpy(buff2, buff);
+        /* Si es por archivo no existente, mirar a ver si al menos el directorio existe */
+        if ( !realpath(dirname(buff), real_path) ) 
+            return -2;
+        /* Si el directorio si existe, posiblemente el path es a un fichero que se va a crear */
+        strcat(real_path, "/");
+        strcat(real_path, basename(buff2));
+        ret = 0;
+    }
+
     /* Finalmente, comprobar que el path es root o un subdirectorio de este */
     if ( memcmp(real_path, root, root_size) ) return -2;
     /* Tras la cadena de root, o acaba el path, o hay subdirectorios, que no contienen '..' gracias a realpath */
     if ( !(real_path[root_size] == '\0' || real_path[root_size] =='/') ) return -2;
 
     /* Path correcto y listo en real_path */
-    return real_path;
+    return ret;
 }
 
 /**
@@ -78,11 +95,10 @@ int get_real_path(char *current_dir, char *path, char *real_path)
  */
 FILE *list_directories(char *path, char *current_dir)
 {
-    int ret;
-    char buff = alloca((strlen(current_dir) + strlen(path) + 1) * sizeof(char));
+    char *buff = alloca((strlen(current_dir) + strlen(path) + 1) * sizeof(char));
     if ( !buff ) return NULL;
     /* Recoger path */
-    if ( (ret = get_real_path(current_dir, path, buff)) < 0 ) return ret;
+    if ( get_real_path(current_dir, path, buff) < 0 ) return NULL;
 
     /* Llamada a ls, redirigiendo el output */
     FILE *output = popen("ls -lbq --numeric-uid-gid --hyperlink=never --color=never", "r");
@@ -100,11 +116,10 @@ FILE *list_directories(char *path, char *current_dir)
  */
 FILE *file_open(char *path, char *current_dir, char *mode)
 {
-    int ret;
-    char buff = alloca((strlen(current_dir) + strlen(path) + 1) * sizeof(char));
+    char *buff = alloca((strlen(current_dir) + strlen(path) + 1) * sizeof(char));
     if ( !buff ) return NULL;
     /* Recoger path */
-    if ( (ret = get_real_path(current_dir, path, buff)) < 0 ) return ret;
+    if ( get_real_path(current_dir, path, buff) < 0 ) return NULL;
 
     /* Llamada a fopen con el path ya completo */
     return fopen(buff, mode);
@@ -148,7 +163,7 @@ int path_is_file(char *path)
 int ch_current_dir(char *current_dir, char *path)
 {
     int ret;
-    char buff = alloca((strlen(current_dir) + strlen(path) + 1) * sizeof(char));
+    char *buff = alloca((strlen(current_dir) + strlen(path) + 1) * sizeof(char));
     if ( !buff ) return -1;
     /* Recoger path */
     if ( (ret = get_real_path(current_dir, path, buff)) < 0 ) return ret;
@@ -174,7 +189,7 @@ int ch_current_dir(char *current_dir, char *path)
  */
 int ch_to_parent_dir(char *current_dir)
 {
-    char buff = alloca((strlen(current_dir) + 1) * sizeof(char));
+    char *buff = alloca((strlen(current_dir) + 1) * sizeof(char));
     if ( !buff ) return -1;
     /* Recoger path del directorio superior, si ya estamos en root, no nos cambiamos */
     if ( get_real_path(current_dir, "../", buff) < 0 )
@@ -238,6 +253,15 @@ ssize_t send_file(int socket_fd, FILE *f, int ascii_mode, int *abort_transfer)
     return total; /* Transferencia correcta */
 }
 
+/**
+ * @brief Leer contenido de un socket a un buffer
+ * 
+ * @param socket_fd Socket origen
+ * @param dest Buffer destino
+ * @param buf_len Tamaño de buffer
+ * @param ascii_mode Modo ascii
+ * @return ssize_t leidos
+ */
 ssize_t read_to_buffer(int socket_fd, char *dest, size_t buf_len, int ascii_mode)
 {
     /* Filtrar lo leido de ascii a local (CRLF a LF) */
@@ -281,7 +305,71 @@ ssize_t read_to_file(FILE *f, int socket_fd, int ascii_mode, int *abort_transfer
     return total;
 }
 
-int active_data_socket_fd(char *port_string)
+/**
+ * @brief Conectarse en modo activo a un puerto de datos del cliente
+ * 
+ * @param port_string Argumento del comando PORT
+ * @param srv_ip Ip de despliegue del servidor
+ * @return int menor que 0 si error
+ */
+int active_data_socket_fd(char *port_string, char *srv_ip)
 {
+    char ip[IP_LEN] = "";
+    int port = 0;
+    int len, comma_count;
+    size_t field_width, command_len = strlen(port_string);
+    char *start = port_string;
+
+    /* IP */
+    for ( len = 0, comma_count = 4; comma_count; comma_count--, port_string = &port_string[field_width + 1])
+    {
+        field_width = strcspn(port_string, ",");
+        /* Campo correcto */
+        if ( field_width >= IP_FIELD_LEN || !field_width || !is_number(port_string, field_width) )
+            return -1;
+        if ( comma_count > 1 ) port_string[field_width] = '.';
+        len += (field_width + 1);
+        if ( len >= command_len ) return -1;
+    }
+    strncpy(ip, start, len - 1); /* Copiar IP omitiendo la , final */
+
+    /* PUERTO */
+    /* Byte superior */
+    field_width = strcspn(port_string, ",");
+    if ( !field_width || field_width > sizeof("xxx") || port_string[field_width] != ',' || !is_number(port_string, field_width) )
+        return -1;
+    port_string[field_width] = '\0';
+    port += (atoi(port_string) << sizeof(char));
+    port_string = &port_string[field_width + 1];
+    /* Byte inferior */
+    field_width = strlen(port_string);
+    if ( !field_width || field_width > sizeof("xxx") || !is_number(port_string, field_width) )
+        return -1;
+    port += atoi(port_string);
     
+    return socket_clt_connection(FTP_DATA_PORT, srv_ip, port, ip);
+}
+
+/**
+ * @brief Crea un socket de datos para que se conecte el cliente
+ * 
+ * @param srv_ip Ip del servidor 
+ * @param passive_port_count Semaforo con el numero de conexiones de datos creadas
+ * @param qlen Tamaño maximo de la cola de conexiones pendientes
+ * @return int 
+ */
+int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int qlen)
+{
+    int socket_fd;
+    /* No hay sockets de datos disponibles en este momento */
+    if ( sem_trywait(passive_port_count) == -1 && errno == EAGAIN )
+        return -1;
+    if ( (socket_fd = socket_srv("tcp", qlen, 0, srv_ip)) < 0 )
+        return socket_fd;
+    
+    /* Devolver el puerto que ha sido encontrado */
+    struct sockaddr_in addrinfo;
+    socklen_t info_len = sizeof(struct sockaddr);
+    getsockname(socket_fd, (struct sockaddr *) &addrinfo, &info_len);
+    return ntohs(addrinfo.sin_port);
 }

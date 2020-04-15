@@ -178,4 +178,21 @@ void parse_ftp_command(request_info *ri, char *buff)
     else
         ri->ignored_command = -1;
     return;
-}   
+}
+
+/**
+ * @brief Establece una respuesta a un comando
+ * 
+ * @param ri Estructura de informacion de una peticion 
+ * @param response Respuesta a la peticion
+ * @param ... Formateado
+ * @return int tamaño de respuesta
+ */
+int set_command_response(request_info *ri, char *response, ...)
+{
+    va_list param;
+    va_start(param, response);
+    ri->response_len = vsnprintf(ri->response, MAX_COMMAND_RESPOSE, response, param);
+    va_end(param);
+    return ri->response_len;
+}
