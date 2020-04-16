@@ -373,3 +373,14 @@ int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int qlen)
     getsockname(socket_fd, (struct sockaddr *) &addrinfo, &info_len);
     return ntohs(addrinfo.sin_port);
 }
+
+/**
+ * @brief Devuelve un puntero al path sin el root
+ * 
+ * @param full_path Path completo
+ * @return char* Puntero al path sin el root
+ */
+char *path_no_root(char *full_path)
+{
+    return &full_path[root_size];
+}

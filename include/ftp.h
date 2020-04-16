@@ -139,14 +139,18 @@ int set_command_response(request_info *ri, char *response, ...);
 #define CODE_221_GOODBYE_MSG "221 Hasta la visa\n" /*!< Despedir al cliente */
 #define CODE_230_AUTH_OK "230 Autenticacion correcta\n" /*!< Usuario y contraseña correctos */
 #define CODE_25O_FILE_OP_OK "250 Operacion sobre archivo correcta\n" /*!< Operacion realizada sobre archivo correcta */
+#define CODE_250_CHDIR_OK "250 Cambiado al directorio %s\n" /* Cambio de directorio */
+#define CODE_257_PWD_OK "257 %s\n" /*!< Muestra el directorio actual */
+#define CODE_257_MKD_OK "257 %s creado\n" /*!< Indica directorio creado correctamente */
 
 #define CODE_331_PASS "331 Introduzca la contraseña\n" /*!< Se necesita una contraseña */
 #define CODE_350_RNTO_NEEDED "350 Necesario nuevo nombre\n" /*!< Pedir nombre al que se renombra el fichero */
 
 #define CODE_430_INVALID_AUTH "430 Usuario o contraseña incorrectos\n" /*!< Error de autenticacion */
 
-#define CODE_501_UNKNOWN_CMD_MSG "501 Error de sintaxis en los argumentos\n" /*!< Argumento no reconocido */
-#define CODE_502_NOT_IMP_CMD_MSG "502 Comando no implementado\n" /*!< Comando no implementado */
+#define CODE_500_UNKNOWN_CMD "500 Comando no reconocido\n" /*!< Comando no reconocido */
+#define CODE_501_BAD_ARGS "501 Error de sintaxis en los argumentos\n" /*!< Argumento no reconocido */
+#define CODE_502_NOT_IMP_CMD "502 Comando no implementado\n" /*!< Comando no implementado */
 #define CODE_503_BAD_SEQUENCE "503 Secuencia incorrecta de comandos\n" /*!< Recibidos comandos en desorden */
 #define CODE_530_NO_LOGIN "530 Usuario no logueado\n" /* Exige usuario logueado */
 #define CODE_550_NO_ACCESS "550 No se puede acceder al archivo\n" /* Sin acceso a archivo */

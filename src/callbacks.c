@@ -55,26 +55,10 @@ uintptr_t command_callback(serverconf *server_conf, session_info *session, reque
     return callbacks[command->implemented_command](server_conf, session, command);
 }
 
-uintptr_t CDUP_cb(serverconf *server_conf, session_info *session, request_info *command)
-{
-    return CALLBACK_RET_PROCEED;
-}
-
-uintptr_t CWD_cb(serverconf *server_conf, session_info *session, request_info *command)
-{
-    return CALLBACK_RET_PROCEED;
-}
-
 uintptr_t HELP_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     return CALLBACK_RET_PROCEED;
 }
-
-uintptr_t MKD_cb(serverconf *server_conf, session_info *session, request_info *command)
-{
-    return CALLBACK_RET_PROCEED;
-}
-
 
 uintptr_t PASV_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
@@ -91,35 +75,160 @@ uintptr_t PORT_cb(serverconf *server_conf, session_info *session, request_info *
     return CALLBACK_RET_PROCEED;
 }
 
-uintptr_t PWD_cb(serverconf *server_conf, session_info *session, request_info *command)
-{
-    return CALLBACK_RET_PROCEED;
-}
-
-
 uintptr_t RETR_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     return CALLBACK_RET_PROCEED;
 }
-
 
 uintptr_t LIST_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     return CALLBACK_RET_PROCEED;
 }
 
-uintptr_t RMD_cb(serverconf *server_conf, session_info *session, request_info *command)
-{
-    return CALLBACK_RET_PROCEED;
-}
-
-uintptr_t RMDA_cb(serverconf *server_conf, session_info *session, request_info *command)
-{
-    return CALLBACK_RET_PROCEED;
-}
-
 uintptr_t STOR_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Borra un directorio recursivamente
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion actual
+ * @param command Comando que genera el callback, se espera encontrar nombre del directorio a borrar
+ * @return uintptr_t 
+ */
+uintptr_t RMDA_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    CHECK_USERNAME(session, command)
+    if ( command->command_arg[0] == '\0' ) /* Sin nombre del directorio */
+        set_command_response(command, CODE_501_BAD_ARGS);
+    else
+    {
+        char path[XXL_SZ] = "";
+        RESOLVE_PATH(session, command, path, 0); /* Recoger directorio a borrar */
+        if ( !path_is_dir(path) )
+            set_command_response(command, CODE_550_NO_ACCESS); /* Comprobar que es directorio */
+        else
+        {
+            char rm_cmd[XXL_SZ + sizeof("rm -rfd ")];
+            sprintf(rm_cmd, "rm -rfd %s", path); /* Se utilizara el comando del sistema */ 
+            if ( system(rm_cmd) != 0 || access(path, F_OK) != -1 ) /* El directorio debe haberse borrado */
+                set_command_response(command, CODE_550_NO_ACCESS);
+            else
+                set_command_response(command, CODE_25O_FILE_OP_OK);
+        }
+    }
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Borra un directorio vacio
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion actual
+ * @param command Comando que genera el callback, se espera encontrar el nombre del directorio a borrar
+ * @return uintptr_t 
+ */
+uintptr_t RMD_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    CHECK_USERNAME(session, command)
+    if ( command->command_arg[0] == '\0' ) /* Sin nombre del directorio */
+        set_command_response(command, CODE_501_BAD_ARGS);
+    else
+    {
+        char path[XXL_SZ] = "";
+        RESOLVE_PATH(session, command, path, 0); /* Recoger directorio a borrar */
+        if ( rmdir(path) == -1 )
+            set_command_response(command, CODE_550_NO_ACCESS);
+        else
+            set_command_response(command, CODE_25O_FILE_OP_OK);
+    }
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Crea un directorio
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion FTP actual
+ * @param command Comando que genera el callback, se espera nombre del directorio a crear como argumento
+ * @return uintptr_t 
+ */
+uintptr_t MKD_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    CHECK_USERNAME(session, command)
+    if ( command->command_arg[0] == '\0' )
+        set_command_response(command, CODE_501_BAD_ARGS);
+    else
+    {
+        char path[XXL_SZ] = "";
+        RESOLVE_PATH(session, command, path, 1);
+        if ( mkdir(path, 0) == -1 ) /* Crea un directorio en el path resuelto */
+            set_command_response(command, CODE_550_NO_ACCESS);
+        else
+            set_command_response(command, CODE_257_MKD_OK, path_no_root(path)); /* Devuelve el nombre del path creado */
+    }
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Cambia al directorio padre
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion, que contiene el directorio actual
+ * @param command Comando que genera el callback
+ * @return uintptr_t 
+ */
+uintptr_t CDUP_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    CHECK_USERNAME(session, command)
+    if ( ch_to_parent_dir(session->current_dir) < 0 )
+        return CALLBACK_RET_END_CONNECTION; /* Error de memoria */
+    set_command_response(command, CODE_250_CHDIR_OK, path_no_root(session->current_dir));   
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Cambia el directorio actual
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion, que contiene el directorio actual
+ * @param command Comando que genera el callback. Se espera argumento con el directorio siguiente
+ * @return uintptr_t 
+ */
+uintptr_t CWD_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    CHECK_USERNAME(session, command)
+    if ( command->command_arg[0] == '\0' )
+        set_command_response(command, CODE_501_BAD_ARGS);
+    else
+        switch ( ch_current_dir(session->current_dir, command->command_arg) )
+        {
+        case -1:
+            return CALLBACK_RET_END_CONNECTION; /* Error de memoria */
+        case -2:
+            set_command_response(command, CODE_550_NO_ACCESS);
+            break;
+        default:
+            set_command_response(command, CODE_250_CHDIR_OK, path_no_root(session->current_dir));   
+            break;
+        }
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Imprime el directorio actual
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion, que contiene el directorio actual
+ * @param command Comando que genera el callback
+ * @return uintptr_t 
+ */
+uintptr_t PWD_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    CHECK_USERNAME(session, command)
+    set_command_response(command, CODE_257_PWD_OK, path_no_root(session->current_dir));
     return CALLBACK_RET_PROCEED;
 }
 
@@ -218,7 +327,7 @@ uintptr_t TYPE_cb(serverconf *server_conf, session_info *session, request_info *
     else if ( !strcmp(command->command_arg, "I") ) /* Modo binario */
         session->ascii_mode = 0;
     else
-        set_command_response(command, CODE_501_UNKNOWN_CMD_MSG);
+        set_command_response(command, CODE_501_BAD_ARGS);
     set_command_response(command, CODE_200_OP_OK);
     return CALLBACK_RET_PROCEED;
 }

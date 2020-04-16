@@ -145,4 +145,12 @@ int active_data_socket_fd(char *port_string, char *srv_ip);
  */
 int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int qlen);
 
+/**
+ * @brief Devuelve un puntero al path sin el root
+ * 
+ * @param full_path Path completo
+ * @return char* Puntero al path sin el root
+ */
+char *path_no_root(char *full_path);
+
 #endif

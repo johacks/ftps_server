@@ -141,9 +141,9 @@ void *ftp_session_loop(void *args)
 
         parse_ftp_command(&ri, buff);
         if ( ri.ignored_command == -1 && ri.implemented_command == -1 ) /* Comando no reconocido */
-            send(clt_fd, CODE_501_UNKNOWN_CMD_MSG, sizeof(CODE_501_UNKNOWN_CMD_MSG), 0);
+            send(clt_fd, CODE_500_UNKNOWN_CMD, sizeof(CODE_500_UNKNOWN_CMD), 0);
         else if ( ri.implemented_command == -1 ) /* Comando reconocido pero no implementado */
-            send(clt_fd, CODE_502_NOT_IMP_CMD_MSG, sizeof(CODE_502_NOT_IMP_CMD_MSG), 0);
+            send(clt_fd, CODE_502_NOT_IMP_CMD, sizeof(CODE_502_NOT_IMP_CMD), 0);
         else /* Comando implementado, llamar al callback y devolver respuesta */
         {
             cb_ret = command_callback(&server_conf, current, &ri);
