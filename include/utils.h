@@ -47,6 +47,8 @@
 #define XXL_SZ 4096     /*!< Tamaño enorme */
 #define XXXL_SZ 8192    /*!< Tamaño gigante */
 
+#define MUTEX_DO(mutex, atomic_op) { sem_wait(&(mutex)); atomic_op sem_post(&(mutex)); } /*!< Protege una operacion atomica con mutex */
+
 /**
  * @brief Tamaño de un fichero dado su descriptor
  * 

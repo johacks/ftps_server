@@ -13,6 +13,7 @@
 #define FTP_SESSION_H
 
 #include "utils.h"
+#include "ftp_files.h"
 #define MAX_PATH MEDIUM_SZ + 1
 #define MAX_ATTRIBUTES SMALL_SZ
 #define MAX_ATTRIBUTE_NAME SMALL_SZ
@@ -37,6 +38,7 @@ typedef struct _attribute
  */
 typedef struct _session_info
 {
+    data_conn *data_connection; /*!< Almacena informacion de la conexion de datos actual */
     int passive_mode; /*!< Indica que se hacen las transmisiones en modo pasivo */
     int ascii_mode; /*!< Indica que se hace la transmision de ficheros en modo ascii */
     int authenticated; /*!< Indica si el usuario de la sesion ya ha sido autenticado correctamente */

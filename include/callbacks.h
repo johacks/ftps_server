@@ -14,7 +14,11 @@
 #include "utils.h"
 #include "config_parser.h"
 #include "ftp_session.h"
-#define CALLBACK_ARGUMENTS serverconf*, session_info*, request_info* /*!< Argumentos de un callback */
+#define CB_ARG1 server_conf /*!< Argumento 1 de un callback: configuracion del servidor */
+#define CB_ARG2 session /*!< Argumento 2 de un callback: informacion de sesion */
+#define CB_ARG3 command /*!< Argumento 3 de un callback: informacion de comando */
+#define CALLBACK_ARGUMENTS serverconf* CB_ARG1, session_info* CB_ARG2, request_info* CB_ARG3 /*!< Argumentos de un callback */
+#define N_CALLBACK_ARGUMENTS 3 /*!< Cuantos argumentos tiene un callback */
 #define CALLBACK_RET uintptr_t /*!< Tipo de retorno de un callback */
 #define CALLBACK_RET_END_CONNECTION -1 /*!< Indicar que la conexion al socket deberia cerrarse */
 #define CALLBACK_RET_PROCEED 0 /*!< Indicar que se siguen aceptando conexiones */

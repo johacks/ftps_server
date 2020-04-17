@@ -29,6 +29,7 @@ void set_ftp_credentials();
 void *ftp_session_loop(void *args);
 void set_end_flag(int sig);
 void set_handlers();
+void data_callback_loop(session_info *session, request_info *ri, char *buf);
 
 int modo_daemon = 0; /* TODO: Añadir al fichero de configuracion */
 serverconf server_conf;
@@ -112,6 +113,40 @@ void accept_loop(int socket_control_fd)
     return;
 }
 
+/**
+ * @brief Queda a la espera de la informacion del thread de conexion de datos
+ *        y posibles peticiones nuevas de control, de las cuales solo se aceptaran las de abort
+ * @param session Contiene informacion de la sesion
+ * @param ri Se va actualizando con las respuestas del thread de datos
+ * @param buf Buffer para recibir datos
+ */
+void data_callback_loop(session_info *session, request_info *ri, char *buf)
+{
+    /* Cuando se avance por este semaforo, se habra rellenado en el cliente el codigo de envio inicial 150 */
+    sem_wait(&(session->data_connection->data_conn_sem));
+    /* Enviamos el codigo de respuesta */
+    send(session->clt_fd, ri->response, ri->response_len, MSG_DONTWAIT);
+    /* Esperamos a que el thread de datos comience la transmision */
+    sem_post(&(session->data_connection->control_conn_sem));
+    sem_wait(&(session->data_connection->data_conn_sem));
+    /* Esperamos a que el thread de datos termine la transmision */
+    while ( sem_trywait(&(session->data_connection->data_conn_sem)) == -1 )
+    {
+        /* Comprobar si ha llegado una peticion nueva */
+        ssize_t len = recv(session->clt_fd, buf, XL_SZ + 1, MSG_DONTWAIT);
+        if ( len != -1 )
+        {
+            /* Si es ABORT, activamos flag de abort (atomico) */
+            if ( len >= sizeof("ABORT") && !memcmp(buf, "ABORT", sizeof("ABORT") - 1) )
+                session->data_connection->abort = 1;
+            /* Ignoramos el resto de peticiones */
+            else
+                send(session->clt_fd, CODE_421_BUSY_DATA, sizeof(CODE_421_BUSY_DATA), MSG_DONTWAIT);
+        }
+    }
+    /* Enviamos la respuesta del thread de datos ya fuera de la funcion */
+    return;
+}
 
 /**
  * @brief Bucle principal de recepcion de comandos FTP 
@@ -125,12 +160,20 @@ void *ftp_session_loop(void *args)
     session_info s1, s2, *current = &s1, *previous = &s2, *aux;
     request_info ri;
     intptr_t clt_fd = (intptr_t) args, cb_ret = CALLBACK_RET_PROCEED;
+    data_conn dc = {.socket_fd = -1, .conn_state = DATA_CONN_CLOSED, .abort = 0};
+
+    /* Sesion FTP: valores constantes */
+    sem_init(&(dc.mutex), 0, 1); /* Controla acceso concurrente a la estructura */
+    sem_init(&(dc.data_conn_sem), 0, 0); /* Si a 1, Callback de datos ya ha terminado preparativos de callback de datos */
+    sem_init(&(dc.control_conn_sem), 0, 0); /* Si a 1, Callback de datos ha finalizado transmision e indicado codigo de retorno */
+    s1.data_connection = s2.data_connection = &dc;
     s1.clt_fd = s2.clt_fd = clt_fd;
+
+     /* Sesion FTP: atributos variables */
+    init_session_info(current, NULL);
+    strcpy(current->current_dir, server_conf.server_root);
     current->passive_mode = 0; /* TODO: fichero de configuracion */
     current->ascii_mode = 1;
-
-    init_session_info(current, NULL); /* Iniciar estructura de sesion con valores por defecto */
-    strcpy(current->current_dir, server_conf.server_root);
 
     /* Bucle principal de la sesion */
     while( !end && cb_ret != CALLBACK_RET_END_CONNECTION )
@@ -144,9 +187,14 @@ void *ftp_session_loop(void *args)
             send(clt_fd, CODE_500_UNKNOWN_CMD, sizeof(CODE_500_UNKNOWN_CMD), 0);
         else if ( ri.implemented_command == -1 ) /* Comando reconocido pero no implementado */
             send(clt_fd, CODE_502_NOT_IMP_CMD, sizeof(CODE_502_NOT_IMP_CMD), 0);
-        else /* Comando implementado, llamar al callback y devolver respuesta */
-        {
+        else /* Comando implementado, llamar al callback y devolver respuesta controlando la posible conexion de datos */
+        {           
+
             cb_ret = command_callback(&server_conf, current, &ri);
+            /* Si es una transmision de datos entramos en un loop distinto */
+            if ( DATA_CALLBACK(ri.implemented_command) && cb_ret != CALLBACK_RET_END_CONNECTION )
+                data_callback_loop(current, &ri, buff);
+            /* Enviar respuesta final del callbacj */
             if ( cb_ret == CALLBACK_RET_PROCEED  || ri.implemented_command == QUIT)
                 send(clt_fd, ri.response, ri.response_len, (cb_ret != CALLBACK_RET_PROCEED) & MSG_DONTWAIT);
             aux = previous;
@@ -161,7 +209,6 @@ void *ftp_session_loop(void *args)
     sem_post(&n_clients);
     return NULL;
 }
-
 
 /**
  * @brief Establece los credenciales del servidor ftp en base al fichero de configuracion

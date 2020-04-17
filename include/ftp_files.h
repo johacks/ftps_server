@@ -12,6 +12,34 @@
 #ifndef FTP_FILES_H
 #define FTP_FILES_H
 
+#include "utils.h"
+
+/**
+ * @brief Define los posibles estados de una conexion FTP de datos
+ * 
+ */
+typedef enum _data_conn_states
+{
+    DATA_CONN_CLOSED, /*!< No hay un socket abierto actualmente */
+    DATA_CONN_AVAILABLE, /*!< Hay un socket listo para transmitir los datos */
+    DATA_CONN_BUSY /*!< Hay un socket de datos abierto, pero ya esta transmitiendo datos */
+} data_conn_states;
+
+/**
+ * @brief Define la informacion de una conexion FTP de datos
+ * 
+ */
+typedef struct _data_conn
+{
+    int is_passive; /*!< Indica si la conexion es de tipo activo o pasivo */
+    int socket_fd; /*!< Descriptor del socket */
+    int abort; /*!< Indica que hay que abortar la transmision actual */
+    data_conn_states conn_state; /*!< Estado de la conexion de datos */
+    sem_t mutex; /*!< Mutex para el cambio del estado de la conexion */
+    sem_t data_conn_sem; /*!< Si a 1, puede continuar el thread de datos */
+    sem_t control_conn_sem; /*!< Si a 1, puede continuar el thread de control */
+} data_conn;
+
 /**
  * @brief Por comodidad del programador para no tener que indicar el path
  * en cada llamada, se establece el path en una variable estatica
@@ -140,10 +168,20 @@ int active_data_socket_fd(char *port_string, char *srv_ip);
  * 
  * @param srv_ip Ip del servidor 
  * @param passive_port_count Semaforo con el numero de conexiones de datos creadas
- * @param qlen Tamaño maximo de la cola de conexiones pendientes
- * @return int 
+ * @param socket_fd Socket resultante
+ * @return int menor que 0 si error, si no, puerto
  */
-int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int qlen);
+int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int *socket_fd);
+
+/**
+ * @brief Genera port string para el comando PASV
+ * 
+ * @param ip Ip del servidor
+ * @param port Puerto de datos
+ * @param buf Buffer que almacenara el resultado
+ * @return char* Resultado
+ */
+char *make_port_string(char *ip, int port, char *buf);
 
 /**
  * @brief Devuelve un puntero al path sin el root

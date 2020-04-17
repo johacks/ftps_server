@@ -17,6 +17,7 @@
 #define SEND_BUFFER 2048
 #define IP_LEN sizeof("xxx.xxx.xxx.xxx")
 #define IP_FIELD_LEN sizeof("xxx")
+#define VIRTUAL_ROOT "/"
 
 static char root[SERVER_ROOT_MAX] = "";
 static size_t root_size; 
@@ -296,6 +297,7 @@ ssize_t read_to_file(FILE *f, int socket_fd, int ascii_mode, int *abort_transfer
     char buf[SEND_BUFFER];
     if ( !abort_transfer ) abort_transfer = &aux;
 
+    /* Lee de buffer en buffer hasta terminar o ser interrumpido */
     while ( !(*abort_transfer) && (read_b = read_to_buffer(socket_fd, buf, SEND_BUFFER, ascii_mode)) > 0 )
     {
         if ( (sent_b = fwrite(buf, sizeof(char), SEND_BUFFER, f)) != read_b )
@@ -355,23 +357,43 @@ int active_data_socket_fd(char *port_string, char *srv_ip)
  * 
  * @param srv_ip Ip del servidor 
  * @param passive_port_count Semaforo con el numero de conexiones de datos creadas
- * @param qlen Tamaño maximo de la cola de conexiones pendientes
- * @return int 
+ * @param socket_fd Socket resultante
+ * @return int menor que 0 si error, si no, puerto
  */
-int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int qlen)
+int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int *socket_fd)
 {
-    int socket_fd;
     /* No hay sockets de datos disponibles en este momento */
     if ( sem_trywait(passive_port_count) == -1 && errno == EAGAIN )
         return -1;
-    if ( (socket_fd = socket_srv("tcp", qlen, 0, srv_ip)) < 0 )
-        return socket_fd;
+    if ( (*socket_fd = socket_srv("tcp", 1, 0, srv_ip)) < 0 )
+        return *socket_fd;
     
     /* Devolver el puerto que ha sido encontrado */
     struct sockaddr_in addrinfo;
     socklen_t info_len = sizeof(struct sockaddr);
-    getsockname(socket_fd, (struct sockaddr *) &addrinfo, &info_len);
+    getsockname(*socket_fd, (struct sockaddr *) &addrinfo, &info_len);
     return ntohs(addrinfo.sin_port);
+}
+
+/**
+ * @brief Genera port string para el comando PASV
+ * 
+ * @param ip Ip del servidor
+ * @param port Puerto de datos
+ * @param buf Buffer que almacenara el resultado
+ * @return char* Resultado
+ */
+char *make_port_string(char *ip, int port, char *buf)
+{
+    int i;
+    strcpy(buf, ip);
+    for ( i = 0; i < strlen(buf); i++ ) /* Puntos por comas en ip */
+        if ( buf[i] == '.' )
+            buf[i] = ',';
+    strcat(&buf[i++], ","); /* Y una coma al final */
+    div_t p1p2 = div(port, 256); /* Obtener ambos numeros del puerto y ponerlos al final */
+    sprintf(&buf[i], "%d,%d", p1p2.quot, p1p2.rem);
+    return buf;
 }
 
 /**
@@ -382,5 +404,7 @@ int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int qlen)
  */
 char *path_no_root(char *full_path)
 {
-    return &full_path[root_size];
+    if ( full_path[root_size] == '/' ) /* Se ha preguntado por un path que va mas alla del root */
+        return &full_path[root_size];
+    return VIRTUAL_ROOT; /* Se ha preguntado por un path que ya era el root */
 }
