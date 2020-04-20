@@ -192,7 +192,7 @@ int set_command_response(request_info *ri, char *response, ...)
 {
     va_list param;
     va_start(param, response);
-    ri->response_len = vsnprintf(ri->response, MAX_COMMAND_RESPOSE, response, param);
+    ri->response_len = vsnprintf(ri->response, MAX_COMMAND_RESPONSE, response, param);
     va_end(param);
     return ri->response_len;
 }

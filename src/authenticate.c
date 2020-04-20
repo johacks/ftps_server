@@ -159,11 +159,13 @@ int validate_pass(char *pass)
     SHA256_CTX sha;
     char hashed[SHA256_BLOCK_SIZE];
     char *shadow_crypted;
+    struct crypt_data data;
+    data.initialized = 0;
 
     /* Primero ciframos en formato shadow si era contraseña por defecto */
     if ( is_default_pass )
     {
-        shadow_crypted = crypt(pass, salt);
+        shadow_crypted = crypt_r(pass, salt, &data);
         if ( !shadow_crypted ) /* Esto puede ocurrir si no se establecieron credenciales en modo root */
             return 0;
     }
@@ -174,9 +176,6 @@ int validate_pass(char *pass)
     sha256_init(&sha);
     sha256_update(&sha, (BYTE *) shadow_crypted, strlen(shadow_crypted));
     sha256_final(&sha, (BYTE *) hashed);
-
-    if ( is_default_pass ) /* Crypt requiere de free */
-        free(shadow_crypted);
 
     /* Comparar los hashes */
     return memcmp(hashed, hashed_pass, SHA256_BLOCK_SIZE) == 0;

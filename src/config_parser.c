@@ -18,6 +18,7 @@ int get_ftp_user(serverconf *server_conf, cfg_t *cfg);
 int get_max_passive_ports(serverconf *server_conf, cfg_t *cfg);
 int get_ftp_host(serverconf *server_conf, cfg_t *cfg);
 int get_max_sessions(serverconf *server_conf, cfg_t *cfg);
+int get_type(serverconf *server_conf, cfg_t *cfg);
 
 /**
  * @brief Parsea la informacion del fichero server.conf para configurar el servidor al iniciarse
@@ -35,6 +36,7 @@ int parse_server_conf(serverconf *server_conf)
         CFG_STR(SERVER_ROOT, SERVER_ROOT_DEFAULT, CFGF_NONE),	
         CFG_INT(MAX_PASSIVE_PORTS, MAX_PASSIVE_PORTS_DEFAULT, CFGF_NONE),
         CFG_INT(MAX_SESSIONS, MAX_SESSIONS_DEFAULT, CFGF_NONE),
+        CFG_STR(TYPE, TYPE_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_USER, FTP_USER_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_HOST, FTP_HOST_DEFAULT, CFGF_NONE),
         CFG_END()
@@ -51,9 +53,29 @@ int parse_server_conf(serverconf *server_conf)
                           || get_ftp_user(server_conf, cfg) < 0
                           || get_max_passive_ports(server_conf, cfg) < 0
                           || get_ftp_host(server_conf, cfg) < 0
+                          || get_type(server_conf, cfg) < 0
                           || get_max_sessions(server_conf, cfg) < 0);
     cfg_free(cfg);
     return res;
+}
+
+/**
+ * @brief Recoge y limpia default_type
+ * 
+ * @param server_conf Estructura de configuracion
+ * @param cfg Resultados del parseo
+ * @return int menor que 0 si error
+ */
+int get_type(serverconf *server_conf, cfg_t *cfg)
+{
+    char *type = cfg_getstr(cfg, TYPE);
+    if ( !strcmp(type, "binary") )
+        server_conf->default_ascii = 0;
+    else if ( !strcmp(type, "ascii") )
+        server_conf->default_ascii = 1;
+    else
+        return -1;
+    return 1;
 }
 
 /**

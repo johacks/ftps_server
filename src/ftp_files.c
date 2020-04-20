@@ -14,10 +14,12 @@
 #include "red.h"
 #include "ftp.h"
 #include "config_parser.h"
-#define SEND_BUFFER 2048
-#define IP_LEN sizeof("xxx.xxx.xxx.xxx")
-#define IP_FIELD_LEN sizeof("xxx")
-#define VIRTUAL_ROOT "/"
+#include "ftp_files.h"
+#define SEND_BUFFER 2048 /*!< Tamaño de buffer de envio */
+#define IP_LEN sizeof("xxx.xxx.xxx.xxx") /*!< Tamaño de ipv4 */
+#define LS_CMD "ls -l1 --numeric-uid-gid --hyperlink=never --time-style=iso --color=never " /*!< Comando ls */
+#define IP_FIELD_LEN sizeof("xxx") /*!< Tamaño de un subcampo de ipv4 */
+#define VIRTUAL_ROOT "/" /*!< Raiz */
 
 static char root[SERVER_ROOT_MAX] = "";
 static size_t root_size; 
@@ -96,14 +98,13 @@ int get_real_path(char *current_dir, char *path, char *real_path)
  */
 FILE *list_directories(char *path, char *current_dir)
 {
-    char *buff = alloca((strlen(current_dir) + strlen(path) + 1) * sizeof(char));
+    char *buff = alloca((sizeof(LS_CMD) + strlen(current_dir) + strlen(path) + 1) * sizeof(char));
     if ( !buff ) return NULL;
     /* Recoger path */
-    if ( get_real_path(current_dir, path, buff) < 0 ) return NULL;
-
+    strcpy(buff, LS_CMD);
+    if ( get_real_path(current_dir, path, &buff[strlen(buff)]) < 0 ) return NULL;
     /* Llamada a ls, redirigiendo el output */
-    FILE *output = popen("ls -lbq --numeric-uid-gid --hyperlink=never --color=never", "r");
-
+    FILE *output = popen(buff, "r");
     return output;
 }
 
@@ -224,7 +225,7 @@ ssize_t send_buffer(int socket_fd, char *buf, size_t buf_len, int ascii_mode)
         }
         return send(socket_fd, ascii_buf, new_buflen, MSG_NOSIGNAL); /* Enviar contenido filtrado */
     }
-    return send(socket_fd, buf,buf_len, MSG_NOSIGNAL); /* Enviar contenido */
+    return send(socket_fd, buf, buf_len, MSG_NOSIGNAL); /* Enviar contenido */
 }
 
 /**
@@ -239,12 +240,12 @@ ssize_t send_buffer(int socket_fd, char *buf, size_t buf_len, int ascii_mode)
 ssize_t send_file(int socket_fd, FILE *f, int ascii_mode, int *abort_transfer)
 {
     int aux = 0;
-    ssize_t sent_b, read_b, total;
+    ssize_t sent_b, read_b, total = 0;
     char buf[SEND_BUFFER];
     if ( !abort_transfer ) abort_transfer = &aux;
 
     /* Enviar contenido de f en bloques */
-    while ( !(*abort_transfer) && (read_b = fread(send_buffer, sizeof(char), SEND_BUFFER, f)) )
+    while ( !(*abort_transfer) && (read_b = fread(buf, sizeof(char), SEND_BUFFER, f)) )
     {
         if ( *abort_transfer ) return 0; /* Se puede cambiar un flag externo para cancelar la transferencia */
         if ( (sent_b = send_buffer(socket_fd, buf, read_b, ascii_mode)) < 0 )
@@ -269,10 +270,9 @@ ssize_t read_to_buffer(int socket_fd, char *dest, size_t buf_len, int ascii_mode
     if ( ascii_mode )
     {
         char *ascii_buf = alloca(buf_len);
-        ssize_t n_read;
-        if ( (n_read = recv(socket_fd, ascii_buf, buf_len, MSG_NOSIGNAL)) < 0 )
-            return -1;
-        ssize_t new_buflen = 0;
+        ssize_t n_read, new_buflen = 0;
+        if ( (n_read = recv(socket_fd, ascii_buf, buf_len, MSG_NOSIGNAL)) <= 0 )
+            return n_read;
         for ( int i = 0; i < n_read; i++ )
             if ( ascii_buf[i] != '\r' )
                 dest[new_buflen++] = ascii_buf[i];
@@ -293,14 +293,14 @@ ssize_t read_to_buffer(int socket_fd, char *dest, size_t buf_len, int ascii_mode
 ssize_t read_to_file(FILE *f, int socket_fd, int ascii_mode, int *abort_transfer)
 {
     int aux = 0;
-    ssize_t sent_b, read_b, total;
+    ssize_t sent_b, read_b, total = 0;
     char buf[SEND_BUFFER];
     if ( !abort_transfer ) abort_transfer = &aux;
 
     /* Lee de buffer en buffer hasta terminar o ser interrumpido */
-    while ( !(*abort_transfer) && (read_b = read_to_buffer(socket_fd, buf, SEND_BUFFER, ascii_mode)) > 0 )
+    while ( !(*abort_transfer) && ((read_b = read_to_buffer(socket_fd, buf, SEND_BUFFER, ascii_mode)) > 0) )
     {
-        if ( (sent_b = fwrite(buf, sizeof(char), SEND_BUFFER, f)) != read_b )
+        if ( (sent_b = fwrite(buf, sizeof(char), read_b, f)) != read_b )
             return -1;
         total += read_b;
     }
@@ -308,16 +308,15 @@ ssize_t read_to_file(FILE *f, int socket_fd, int ascii_mode, int *abort_transfer
 }
 
 /**
- * @brief Conectarse en modo activo a un puerto de datos del cliente
+ * @brief Parsea un port string de formato xxx,xxx,xxx,xxx,ppp,ppp
  * 
  * @param port_string Argumento del comando PORT
- * @param srv_ip Ip de despliegue del servidor
+ * @param clt_ip Buffer donde se guardara la ip del cliente
+ * @param clt_port Donde se guardara el puerto del cliente
  * @return int menor que 0 si error
  */
-int active_data_socket_fd(char *port_string, char *srv_ip)
+int parse_port_string(char *port_string, char *clt_ip, int *clt_port)
 {
-    char ip[IP_LEN] = "";
-    int port = 0;
     int len, comma_count;
     size_t field_width, command_len = strlen(port_string);
     char *start = port_string;
@@ -333,23 +332,23 @@ int active_data_socket_fd(char *port_string, char *srv_ip)
         len += (field_width + 1);
         if ( len >= command_len ) return -1;
     }
-    strncpy(ip, start, len - 1); /* Copiar IP omitiendo la , final */
+    strncpy(clt_ip, start, len - 1); /* Copiar IP omitiendo la , final */
 
     /* PUERTO */
+    *clt_port = 0;
     /* Byte superior */
     field_width = strcspn(port_string, ",");
     if ( !field_width || field_width > sizeof("xxx") || port_string[field_width] != ',' || !is_number(port_string, field_width) )
         return -1;
     port_string[field_width] = '\0';
-    port += (atoi(port_string) << sizeof(char));
+    *clt_port += (atoi(port_string) << 8); /* Multiplicar por 256 */
     port_string = &port_string[field_width + 1];
     /* Byte inferior */
     field_width = strlen(port_string);
     if ( !field_width || field_width > sizeof("xxx") || !is_number(port_string, field_width) )
         return -1;
-    port += atoi(port_string);
-    
-    return socket_clt_connection(FTP_DATA_PORT, srv_ip, port, ip);
+    *clt_port += atoi(port_string);
+    return 1;   
 }
 
 /**
@@ -365,9 +364,10 @@ int passive_data_socket_fd(char *srv_ip, sem_t *passive_port_count, int *socket_
     /* No hay sockets de datos disponibles en este momento */
     if ( sem_trywait(passive_port_count) == -1 && errno == EAGAIN )
         return -1;
-    if ( (*socket_fd = socket_srv("tcp", 1, 0, srv_ip)) < 0 )
+    if ( (*socket_fd = socket_srv("tcp", 10, 0, srv_ip)) < 0 )
         return *socket_fd;
-    
+    /* Establecer un timeout */
+    set_socket_timeouts(*socket_fd, DATA_SOCKET_TIMEOUT);
     /* Devolver el puerto que ha sido encontrado */
     struct sockaddr_in addrinfo;
     socklen_t info_len = sizeof(struct sockaddr);
@@ -393,6 +393,7 @@ char *make_port_string(char *ip, int port, char *buf)
     strcat(&buf[i++], ","); /* Y una coma al final */
     div_t p1p2 = div(port, 256); /* Obtener ambos numeros del puerto y ponerlos al final */
     sprintf(&buf[i], "%d,%d", p1p2.quot, p1p2.rem);
+    printf("%d\n", port);
     return buf;
 }
 

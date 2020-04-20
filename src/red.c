@@ -7,9 +7,24 @@
  * 
  * 
  */
+#define _DEFAULT_SOURCE
 #include <syslog.h>
 #include <ctype.h>
 #include "red.h"
+
+/* Obtenido de https://stackoverflow.com/questions/4181784/how-to-set-socket-timeout-in-c-when-making-multiple-connections */
+/**
+ * @brief Añade opciones a un socket para que las operaciones de escritura y lectura de un socket tengan un timeout maximo
+ * 
+ * @param socket_fd Socket a modificar
+ * @param seconds Numero de segundos de tiemout
+ */
+int set_socket_timeouts(int socket_fd, int seconds)
+{
+    struct timeval timeout = {.tv_sec = seconds, .tv_usec = 0};
+    return MIN(setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)),
+               setsockopt(socket_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)));
+}
 
 int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int puerto, char *ip);
 
@@ -130,7 +145,6 @@ int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int pu
     int proto_num;                      /* Numero asociado al protocolo */
     int tipo_socket;                    /* Tipo de socket: stream, datagramas... */
     int socket_fd;                      /* Descriptor de fichero del socket */
-    int optval = 1;
 
     /* Obtenemos el numero asociado al protocolo pasado como argumento */
     if ( !proto_transp || (ppe = getprotobyname(proto_transp)) == 0 )
@@ -150,10 +164,6 @@ int socket_proto(const char *proto_transp, struct sockaddr_in *sock_info, int pu
 
     if ( setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0 )
         return -2;
-
-    /* Si es socket TCP, usamos TCP_CORK para mayor eficiencia a la hora de enviar cabeceras */
-    if ( tipo_socket == SOCK_STREAM )
-        setsockopt(socket_fd, ppe->p_proto, TCP_CORK, &optval, sizeof(int));
 
     /* Inicializamos estructura de dirección y puerto */
 	bzero(sock_info, sizeof(struct sockaddr_in));   /* Rellena de 0s, equivalente a memset */

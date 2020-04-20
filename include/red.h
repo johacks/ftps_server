@@ -34,6 +34,15 @@
     MANIPULACION Y CREACION DE SOCKETS
 *******************************/
 
+/* Obtenido de https://stackoverflow.com/questions/4181784/how-to-set-socket-timeout-in-c-when-making-multiple-connections */
+/**
+ * @brief Añade opciones a un socket para que las operaciones de escritura y lectura de un socket tengan un timeout maximo
+ * 
+ * @param socket_fd Socket a modificar
+ * @param seconds Numero de segundos de tiemout
+ */
+int set_socket_timeouts(int socket_fd, int seconds);
+
 /**
  * @brief Crea un socket para un servidor dado el protocolo a utilizar, puerto y el tamaño de buffer de la cola.
  *        Realiza el bind (y el listen si corresponde).

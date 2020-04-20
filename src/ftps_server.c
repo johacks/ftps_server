@@ -18,9 +18,10 @@
 #include "config_parser.h"
 #include "ftp_files.h"
 
-#define MAX_PASSWORD MEDIUM_SZ
-#define USING_AUTHBIND "--using-authbind"
+#define MAX_PASSWORD MEDIUM_SZ /*!< Tamaño maximo de contraseña */
+#define USING_AUTHBIND "--using-authbind" /*!< Indica ejecuciona actual con authbind */
 #define THREAD_CLOSE_WAIT 2 /*!< Maximo de tiempo que se espera que se cierre un hilo */
+#define CONTROL_SOCKET_TIMEOUT 150 /*!< Timeout maximo de conexion de control */
 #define DEBUG
 
 void free_resources(int socket_control_fd, int socket_data_fd);
@@ -29,7 +30,7 @@ void set_ftp_credentials();
 void *ftp_session_loop(void *args);
 void set_end_flag(int sig);
 void set_handlers();
-void data_callback_loop(session_info *session, request_info *ri, char *buf);
+void data_callback_loop(session_info *session, request_info *ri, serverconf * server_conf,char *buf);
 
 int modo_daemon = 0; /* TODO: Añadir al fichero de configuracion */
 serverconf server_conf;
@@ -61,6 +62,7 @@ int main(int argc, char *argv[])
     int socket_control_fd = socket_srv("tcp", 10, FTP_CONTROL_PORT, server_conf.ftp_host);
     if ( socket_control_fd < 0 )
         errexit("Fallo al abrir socket de control %s\n", strerror(errno));
+    set_socket_timeouts(socket_control_fd, CONTROL_SOCKET_TIMEOUT);
 
     /* Establecer configuracion de logueo */
     set_log_conf(1, 0, NULL);
@@ -72,7 +74,8 @@ int main(int argc, char *argv[])
     accept_loop(socket_control_fd);
     
     /* Liberar recursos */
-    free_resources(socket_control_fd, -1);
+    close(socket_control_fd);
+    exit(0);
 }
 
 /**
@@ -117,15 +120,16 @@ void accept_loop(int socket_control_fd)
  * @brief Queda a la espera de la informacion del thread de conexion de datos
  *        y posibles peticiones nuevas de control, de las cuales solo se aceptaran las de abort
  * @param session Contiene informacion de la sesion
+ * @param server_conf Contiene semaforo de puertos en modo pasivo
  * @param ri Se va actualizando con las respuestas del thread de datos
  * @param buf Buffer para recibir datos
  */
-void data_callback_loop(session_info *session, request_info *ri, char *buf)
+void data_callback_loop(session_info *session, request_info *ri, serverconf * server_conf,char *buf)
 {
     /* Cuando se avance por este semaforo, se habra rellenado en el cliente el codigo de envio inicial 150 */
     sem_wait(&(session->data_connection->data_conn_sem));
     /* Enviamos el codigo de respuesta */
-    send(session->clt_fd, ri->response, ri->response_len, MSG_DONTWAIT);
+    send(session->clt_fd, ri->response, ri->response_len, MSG_DONTWAIT | MSG_NOSIGNAL);
     /* Esperamos a que el thread de datos comience la transmision */
     sem_post(&(session->data_connection->control_conn_sem));
     sem_wait(&(session->data_connection->data_conn_sem));
@@ -133,7 +137,7 @@ void data_callback_loop(session_info *session, request_info *ri, char *buf)
     while ( sem_trywait(&(session->data_connection->data_conn_sem)) == -1 )
     {
         /* Comprobar si ha llegado una peticion nueva */
-        ssize_t len = recv(session->clt_fd, buf, XL_SZ + 1, MSG_DONTWAIT);
+        ssize_t len = recv(session->clt_fd, buf, XL_SZ + 1, MSG_DONTWAIT | MSG_NOSIGNAL);
         if ( len != -1 )
         {
             /* Si es ABORT, activamos flag de abort (atomico) */
@@ -141,10 +145,22 @@ void data_callback_loop(session_info *session, request_info *ri, char *buf)
                 session->data_connection->abort = 1;
             /* Ignoramos el resto de peticiones */
             else
-                send(session->clt_fd, CODE_421_BUSY_DATA, sizeof(CODE_421_BUSY_DATA), MSG_DONTWAIT);
+                send(session->clt_fd, CODE_421_BUSY_DATA, sizeof(CODE_421_BUSY_DATA), MSG_DONTWAIT | MSG_NOSIGNAL);
         }
     }
-    /* Enviamos la respuesta del thread de datos ya fuera de la funcion */
+    /* Cerramos el socket de datos y dejamos que el thread principal envie la ultima respuesta */
+    if ( session->data_connection->conn_fd > 0 )
+        close(session->data_connection->conn_fd);
+    session->data_connection->conn_fd = -1;
+    if ( session->data_connection->socket_fd > 0)
+        close(session->data_connection->socket_fd);
+    session->data_connection->socket_fd = -1;
+    /* Si era una transmision en modo pasivo, hay un nuevo puerto pasivo libre */
+    if ( session->data_connection->conn_state != DATA_CONN_CLOSED && session->data_connection->is_passive )
+        sem_post(&(server_conf->free_passive_ports));
+    session->data_connection->conn_state = DATA_CONN_CLOSED;
+    /* Levantar el flag de abort */
+    session->data_connection->abort = 0;
     return;
 }
 
@@ -160,7 +176,8 @@ void *ftp_session_loop(void *args)
     session_info s1, s2, *current = &s1, *previous = &s2, *aux;
     request_info ri;
     intptr_t clt_fd = (intptr_t) args, cb_ret = CALLBACK_RET_PROCEED;
-    data_conn dc = {.socket_fd = -1, .conn_state = DATA_CONN_CLOSED, .abort = 0};
+    data_conn dc = {.socket_fd = -1, .conn_state = DATA_CONN_CLOSED, .abort = 0, .conn_fd = -1};
+    ssize_t read_b;
 
     /* Sesion FTP: valores constantes */
     sem_init(&(dc.mutex), 0, 1); /* Controla acceso concurrente a la estructura */
@@ -172,31 +189,35 @@ void *ftp_session_loop(void *args)
      /* Sesion FTP: atributos variables */
     init_session_info(current, NULL);
     strcpy(current->current_dir, server_conf.server_root);
-    current->passive_mode = 0; /* TODO: fichero de configuracion */
-    current->ascii_mode = 1;
+    current->ascii_mode = server_conf.default_ascii;
 
     /* Bucle principal de la sesion */
     while( !end && cb_ret != CALLBACK_RET_END_CONNECTION )
     {
         /* Recoger siguiente comando comprobando de vez en cuando el flag */
-        while ( !end && (recv(clt_fd, buff, XL_SZ, MSG_DONTWAIT) == -1) && !usleep(10) );
-        if ( end ) break;
-
+        while ( !end && (((read_b = recv(clt_fd, buff, XL_SZ, MSG_DONTWAIT | MSG_NOSIGNAL)) < 0) && (errno == EWOULDBLOCK || errno == EAGAIN)) && !usleep(1000) );
+        if ( end || read_b <= 0) break;
+        buff[read_b] = '\0'; /* Por motivos de seguridad aseguramos un cero */
         parse_ftp_command(&ri, buff);
+        #ifdef DEBUG
+            printf("%s %s\n", ri.command_name, ri.command_arg);
+        #endif
         if ( ri.ignored_command == -1 && ri.implemented_command == -1 ) /* Comando no reconocido */
-            send(clt_fd, CODE_500_UNKNOWN_CMD, sizeof(CODE_500_UNKNOWN_CMD), 0);
+            send(clt_fd, CODE_500_UNKNOWN_CMD, sizeof(CODE_500_UNKNOWN_CMD), MSG_NOSIGNAL);
         else if ( ri.implemented_command == -1 ) /* Comando reconocido pero no implementado */
-            send(clt_fd, CODE_502_NOT_IMP_CMD, sizeof(CODE_502_NOT_IMP_CMD), 0);
+            send(clt_fd, CODE_502_NOT_IMP_CMD, sizeof(CODE_502_NOT_IMP_CMD), MSG_NOSIGNAL);
         else /* Comando implementado, llamar al callback y devolver respuesta controlando la posible conexion de datos */
         {           
-
             cb_ret = command_callback(&server_conf, current, &ri);
             /* Si es una transmision de datos entramos en un loop distinto */
             if ( DATA_CALLBACK(ri.implemented_command) && cb_ret != CALLBACK_RET_END_CONNECTION )
-                data_callback_loop(current, &ri, buff);
+                data_callback_loop(current, &ri, &server_conf, buff);
             /* Enviar respuesta final del callbacj */
             if ( cb_ret == CALLBACK_RET_PROCEED  || ri.implemented_command == QUIT)
-                send(clt_fd, ri.response, ri.response_len, (cb_ret != CALLBACK_RET_PROCEED) & MSG_DONTWAIT);
+                send(clt_fd, ri.response, ri.response_len, ((cb_ret != CALLBACK_RET_PROCEED) & MSG_DONTWAIT) | MSG_NOSIGNAL);
+            #ifdef DEBUG
+            printf("-->%s\n", ri.response);
+            #endif
             aux = previous;
             previous = current;
             current = aux; /* Sesion actual pasa a ser la sesion previa */
@@ -287,11 +308,4 @@ void set_handlers()
 void set_end_flag(int sig)
 {
     end = 1;
-}
-
-void free_resources(int socket_control_fd, int socket_data_fd)
-{
-    if ( socket_control_fd > 0 ) close(socket_control_fd);
-    if ( socket_data_fd > 0 ) close(socket_data_fd);
-    return;
 }

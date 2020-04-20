@@ -29,9 +29,8 @@ void init_session_info(session_info *session, session_info *previous_session)
     /* Heredar atributos de la sesion anterior */
     session->authenticated = previous_session->authenticated;
     session->ascii_mode = previous_session->ascii_mode;
-    session->passive_mode = previous_session->ascii_mode;
     strcpy(session->current_dir, previous_session->current_dir);
-    /* Heredar atributos volatiles de la sesiona anterior */
+    /* Heredar atributos volatiles de la sesion anterior */
     for ( int i = 0; i < previous_session->n_attributes; i++)
     {
         attribute *attr = &(session->attributes[session->n_attributes]), *p_attr = &(previous_session->attributes[i]);
@@ -127,5 +126,9 @@ int free_attributes(session_info *session)
             free((void *) attr->val);
         }
     }
+    if ( session->data_connection->socket_fd > 0 )
+        close(session->data_connection->socket_fd);
+    if ( session->data_connection->conn_fd > 0 )
+        close(session->data_connection->conn_fd);
     return nfreed;
 }

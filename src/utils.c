@@ -24,6 +24,24 @@ size_t file_size(int fd)
 }
 
 /**
+ * @brief Indica el sistema operativo en uso
+ * 
+ * @return char* 
+ */
+char *operating_system()
+{
+    #ifdef __linux__
+    return "Linux";
+    #elif __FreeBSD__
+    return "FreeBSD";
+    #elif __unix || __unix__
+    return "Unix";
+    #else
+    return "Other";
+    #endif
+}
+
+/**
  * @brief Tamaño de un fichero dado su nombre
  * 
  * @param path Nombre del fichero

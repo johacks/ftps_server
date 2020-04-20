@@ -14,7 +14,7 @@ DIRECTORIES=$(O) $(L) $(D) $(S) $(H) $(SL) $(B)
 # Compilacion y ejecucion con valgrind
 CC=gcc
 VGLOGS=vglogs/
-VFLAGS= --leak-check=full --show-leak-kinds=all --log-file=$(VGLOGS)log%p.txt --trace-children=yes --track-origins=yes
+VFLAGS= --leak-check=full --show-leak-kinds=all --trace-children=no --track-origins=yes
 CFLAGS= -g -Wall -I $(L) -I $(H) -I $(SL)
 EXE=$(B)ftps_server
 
@@ -108,4 +108,4 @@ pretty_vglog:
 	cat $(VGLOGS)* > $(VGLOGS)execlog.txt
 
 runv:
-	valgrind $(VFLAGS) ftps_server
+	valgrind $(VFLAGS) $(B)ftps_server

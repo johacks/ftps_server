@@ -25,6 +25,8 @@
 #define FTP_HOST_MAX MEDIUM_SZ + 1 /*!< Tamaño maximo nombre o ip de host */
 #define MAX_SESSIONS "max_sessions" /*!< Campo para maximo de sesions */
 #define MAX_SESSIONS_DEFAULT 100 /*!< Valor por defecto para el campo max_sessions */
+#define TYPE "default_type" /*!< Campo para tipo por defecto de transmision de datos */
+#define TYPE_DEFAULT "ascii" /*!< Valor por defecto para el campo */
 
 typedef struct _serverconf
 {
@@ -34,7 +36,7 @@ typedef struct _serverconf
     char ftp_user[FTP_USER_MAX]; /*!< Nombre de usuario asociado al servidor ftp */
     char ftp_host[FTP_HOST_MAX]; /*!< Host donde se desplegara el servidor */
     int max_sessions; /*!< Maximo de sesiones FTP concurrentes */
-
+    int default_ascii; /*!< Indica si el modo por defecto es ascii o no */
 } serverconf;
 
 /**

@@ -13,6 +13,8 @@
 #define FTP_FILES_H
 
 #include "utils.h"
+#include "red.h"
+#define DATA_SOCKET_TIMEOUT 5 /*!< Maximo de segundos de timeout en conexion de datos */
 
 /**
  * @brief Define los posibles estados de una conexion FTP de datos
@@ -32,7 +34,10 @@ typedef enum _data_conn_states
 typedef struct _data_conn
 {
     int is_passive; /*!< Indica si la conexion es de tipo activo o pasivo */
-    int socket_fd; /*!< Descriptor del socket */
+    int socket_fd; /*!< Descriptor del socket en modo pasivo */
+    int conn_fd; /*!< Descriptor de la conexion en modo activo y pasivo */
+    char client_ip[sizeof("XXX.XXX.XXX.XXX")]; /*!< Direccion ip del cliente para una conexion en modo activo */
+    int client_port; /*!< Puerto del cliente para una conexion en modo activo */
     int abort; /*!< Indica que hay que abortar la transmision actual */
     data_conn_states conn_state; /*!< Estado de la conexion de datos */
     sem_t mutex; /*!< Mutex para el cambio del estado de la conexion */
@@ -155,13 +160,14 @@ ssize_t read_to_buffer(int socket_fd, char *dest, size_t buf_len, int ascii_mode
 ssize_t read_to_file(FILE *f, int socket_fd, int ascii_mode, int *abort_transfer);
 
 /**
- * @brief Conectarse en modo activo a un puerto de datos del cliente
+ * @brief Parsea un port string de formato xxx,xxx,xxx,xxx,ppp,ppp
  * 
  * @param port_string Argumento del comando PORT
- * @param srv_ip Ip de despliegue del servidor
+ * @param clt_ip Buffer donde se guardara la ip del cliente
+ * @param clt_port Donde se guardara el puerto del cliente
  * @return int menor que 0 si error
  */
-int active_data_socket_fd(char *port_string, char *srv_ip);
+int parse_port_string(char *port_string, char *clt_ip, int *clt_port);
 
 /**
  * @brief Crea un socket de datos para que se conecte el cliente

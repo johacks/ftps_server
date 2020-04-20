@@ -58,6 +58,13 @@
 size_t file_size(int fd);
 
 /**
+ * @brief Indica el sistema operativo en uso
+ * 
+ * @return char* 
+ */
+char *operating_system();
+
+/**
  * @brief Tamaño de un fichero dado su nombre
  * 
  * @param path Nombre del fichero
