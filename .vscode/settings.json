@@ -6,6 +6,7 @@
         "authenticate.h": "c",
         "cstdlib": "c",
         "paths.h": "c",
-        "syslog.h": "c"
+        "syslog.h": "c",
+        "tlse.c": "cpp"
     }
 }

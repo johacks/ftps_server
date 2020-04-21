@@ -41,6 +41,9 @@ typedef struct _session_info
     data_conn *data_connection; /*!< Almacena informacion de la conexion de datos actual */
     int ascii_mode; /*!< Indica que se hace la transmision de ficheros en modo ascii */
     int authenticated; /*!< Indica si el usuario de la sesion ya ha sido autenticado correctamente */
+    int secure; /*!< Indica si la sesion esta en modo seguro */
+    int pbsz_sent; /*!< Indica que ya se ha enviado el comando pbsz */
+    TLS *context; /*!< Contexto TLS de sesion */
     char current_dir[MAX_PATH]; /*!< Directorio actual del usuario de la sesion */
     int n_attributes; /*!< Cantidad de atributos actualmente en sesion */
     attribute attributes[MAX_ATTRIBUTES]; /*!< Atributos variables de la sesion */

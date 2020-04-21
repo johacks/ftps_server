@@ -22,6 +22,7 @@
 #define CALLBACK_RET uintptr_t /*!< Tipo de retorno de un callback */
 #define CALLBACK_RET_END_CONNECTION -1 /*!< Indicar que la conexion al socket deberia cerrarse */
 #define CALLBACK_RET_PROCEED 0 /*!< Indicar que se siguen aceptando conexiones */
+#define CALLBACK_RET_DONT_SEND 1 /*!< Indicar al nivel superior que no mande la respuesta */
 
 /**
  * @brief Define el tipo callback

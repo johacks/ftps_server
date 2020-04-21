@@ -20,14 +20,20 @@
 void init_session_info(session_info *session, session_info *previous_session)
 {
     session->n_attributes = 0;
-    if ( !previous_session )
+    if ( !previous_session ) /* Valores iniciales */
     {
         session->authenticated = 0;
+        session->context = NULL;
+        session->secure = 0;
+        session->pbsz_sent = 0;
         strcpy(session->current_dir, "/");
         return;
     }
     /* Heredar atributos de la sesion anterior */
     session->authenticated = previous_session->authenticated;
+    session->secure = previous_session->secure;
+    session->pbsz_sent = previous_session->pbsz_sent;
+    session->context = previous_session->context;
     session->ascii_mode = previous_session->ascii_mode;
     strcpy(session->current_dir, previous_session->current_dir);
     /* Heredar atributos volatiles de la sesion anterior */
@@ -126,9 +132,8 @@ int free_attributes(session_info *session)
             free((void *) attr->val);
         }
     }
-    if ( session->data_connection->socket_fd > 0 )
-        close(session->data_connection->socket_fd);
-    if ( session->data_connection->conn_fd > 0 )
-        close(session->data_connection->conn_fd);
+    /* Cerrar posible conexion de datos y socket de datos */
+    sclose(&(session->data_connection->context), &(session->data_connection->conn_fd));
+    sclose(NULL, &(session->data_connection->socket_fd));
     return nfreed;
 }

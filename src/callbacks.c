@@ -623,6 +623,20 @@ uintptr_t SYST_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
+ * @brief Indica funcionalidades adicionales
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Informacion de sesion
+ * @param command Comando que genera el callback
+ * @return uintptr_t 
+ */
+uintptr_t FEAT_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    set_command_response(command, CODE_211_FEAT, operating_system());
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
  * @brief No hace nada
  * 
  * @param server_conf Configuracion del servidor
@@ -678,7 +692,7 @@ uintptr_t STRU_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 
-/* CALLBACKS DE AUTENTICACION */
+/* CALLBACKS DE SEGURIDAD */
 
 /**
  * @brief Autentica un usuario mediante su contraseña
@@ -690,6 +704,11 @@ uintptr_t STRU_cb(serverconf *server_conf, session_info *session, request_info *
  */
 uintptr_t PASS_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
+    if ( !(session->secure && session->pbsz_sent) ) /* Siempre AUTH primero */
+    {
+        set_command_response(command, CODE_522_NO_TLS);
+        return CALLBACK_RET_PROCEED;
+    }
     char *username = (char *) get_attribute(session, USERNAME_ATTR);
     /* Si no se ha mandado comando user con el nombre de usuario, exigirlo */
     if ( ((uintptr_t) username) == ATTR_NOT_FOUND )
@@ -720,6 +739,11 @@ uintptr_t PASS_cb(serverconf *server_conf, session_info *session, request_info *
  */
 uintptr_t USER_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
+    if ( !(session->secure && session->pbsz_sent) ) /* Siempre AUTH primero */
+    {
+        set_command_response(command, CODE_522_NO_TLS);
+        return CALLBACK_RET_PROCEED;
+    }
     char *username = malloc(FTP_USER_MAX * sizeof(char));
     if ( !username )
         return CALLBACK_RET_END_CONNECTION;
@@ -728,6 +752,84 @@ uintptr_t USER_cb(serverconf *server_conf, session_info *session, request_info *
     set_attribute(session, USERNAME_ATTR, (uintptr_t) username, 1, 1);
     /* Exigir la contraseña */
     set_command_response(command, CODE_331_PASS);
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Activa comunicacion segura
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion FTP
+ * @param command Comando que genera el callback, se espera el argumento TLS
+ * @return uintptr_t Puede devolver CALLBACK_RET_DONT_SEND
+ */
+uintptr_t AUTH_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    if ( session->secure ) /* No permitir AUTH doble */
+    {
+        set_command_response(command, CODE_503_BAD_SEQUENCE);
+        return CALLBACK_RET_PROCEED;
+    }
+    if ( strcmp(command->command_arg, "TLS") ) /* Solo acepta TLS */
+    {
+        set_command_response(command, CODE_431_INVALID_SEC, command->command_arg);
+        return CALLBACK_RET_PROCEED;
+    }
+    char *buf = alloca(XXXL_SZ);
+    send(session->clt_fd, CODE_234_START_NEG, sizeof(CODE_234_START_NEG), MSG_NOSIGNAL);
+    session->context = tls_accept(server_conf->server_ctx);
+    tls_request_client_certificate(session->context); /* Necesitamos certificado del cliente */
+    digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Envia peticion de certificado al cliente */
+    digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Recibe certificado del cliente */
+    if ( !tls_context_check_client_certificate(NULL, session->context) ) /* Comprueba certificado del cliente */
+    {
+        ssend(session->context, session->clt_fd, CODE_421_BAD_TLS_NEG, sizeof(CODE_421_BAD_TLS_NEG), MSG_NOSIGNAL);
+        tls_destroy_context(session->context);
+        session->context = NULL;
+        return CALLBACK_RET_END_CONNECTION;
+    }
+    session->secure = 1; /* Flag activado */
+    return CALLBACK_RET_DONT_SEND;
+}
+
+/**
+ * @brief Indica nivel de seguridad
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion FTP
+ * @param command Comando que genera el callback, se espera el argumento P
+ * @return uintptr_t 
+ */
+uintptr_t PROT_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    if ( !session->secure || !session->pbsz_sent )
+        set_command_response(command, CODE_503_BAD_SEQUENCE);
+    else if ( strcmp(command->command_arg, "P") )
+        set_command_response(command, CODE_536_INSUFFICIENT_SEC);
+    else
+        set_command_response(command, CODE_200_OP_OK);
+    return CALLBACK_RET_PROCEED;
+}
+
+/**
+ * @brief Cambia tamaño de buffer
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion FTP
+ * @param command Comando que genera el callback, se espera el argumento 0
+ * @return uintptr_t 
+ */
+uintptr_t PBSZ_cb(serverconf *server_conf, session_info *session, request_info *command)
+{
+    if ( !session->secure )
+        set_command_response(command, CODE_503_BAD_SEQUENCE);
+    else if ( strcmp(command->command_arg, "0") )
+        set_command_response(command, CODE_504_UNSUPORTED_PARAM);
+    else
+    {
+        set_command_response(command, CODE_200_OP_OK);
+        session->pbsz_sent = 1;
+    }
     return CALLBACK_RET_PROCEED;
 }
 

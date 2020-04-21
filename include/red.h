@@ -102,4 +102,90 @@ int socket_clt_connection(int puerto_clt, char *ip_clt, int puerto_srv, char *ip
  */
 int socket_dump_fd(int socket_fd, int src_fd);
 
+/**
+ * @brief Lee contenido de un fichero a un buffer
+ * https://github.com/eduardsui/tlse
+ * @param fname Nombre del fichero
+ * @param buf Buffer destino
+ * @param max_len Tamaño maximo de buffer
+ * @return int menor o igual que 0 si error
+ */
+int read_from_file(const char *fname, char *buf, int max_len);
+
+/**
+ * @brief Carga clave y certificado del servidor al contexto
+ * https://github.com/eduardsui/tlse
+ * @param context Contexto TLS
+ * @param fname Nombre del fichero pem con certificado
+ * @param priv_fname Nombre del fichero pem con clave privada
+ * 
+ * @return int 1 si todo ok, 0 si error
+ */
+int load_keys(struct TLSContext *context, char *fname, char *priv_fname);
+
+/**
+ * @brief Manda bytes de protocolo TLS que quedan pendientes de envio
+ * https://github.com/eduardsui/tlse
+ * @param client_sock Socket al que se envian
+ * @param context Contexto TLS
+ * @return int Error si menor que 0
+ */
+int send_pending(int client_sock, struct TLSContext *context);
+
+/**
+ * @brief Digiere un mensaje tls del socket 
+ * 
+ * @param tls_context Contexto TLS
+ * @param conn_fd descriptor de la conexion
+ * @param buf Buffer destino
+ * @param buf_len Tamaño maximo de buffer
+ * @param flags flags de recv asociado
+ * @return int bytes leido o menor que 0 si error
+ */
+int digest_tls(struct TLSContext *tls_context, int conn_fd, char *buf, ssize_t buf_len, int flags);
+
+/**
+ * @brief Recibe de manera segura un mensaje
+ * 
+ * @param tls_context Contexto TLS
+ * @param conn_fd Descriptor de la conexion
+ * @param buf Buffer destino
+ * @param buf_len Tamaño maximo de buffer
+ * @param flags Flags de recv
+ * @return int Mayor que 0 si bytes leidos, 0 si se pierde conexion TLS, -1 si error
+ */
+int srecv(struct TLSContext *tls_context, int conn_fd, char *buf, ssize_t buf_len, int flags);
+
+/**
+ * @brief Envia de forma segura el contenido de un buffer
+ * 
+ * @param tls_context Contexto TLS
+ * @param conn_fd Descriptor de la conexion
+ * @param buf Buffer a enviar
+ * @param buf_len Tamaño del buffer
+ * @param flags Flags de send
+ */
+int ssend(struct TLSContext *tls_context, int conn_fd, char *buf, ssize_t buf_len, int flags);
+
+/**
+ * @brief Cierra un socket o conexion
+ * 
+ * @param tls_context Si se da, se entiende que es una conexion y se cierra
+ * @param fd Debe ser mayor que 0
+ * @return int menor que 0 si error
+ */
+int sclose(struct TLSContext **tls_context, int *fd);
+
+/**
+ * @brief Acepta a un nuevo cliente y realiza el handshake
+ * 
+ * @param gen_context Contexto TLS general
+ * @param context Almacenara el contexto TLS de sesion
+ * @param sock_fd Socket de escucha
+ * @param expected_pkey Si no NULL, verifica que el certificado del cliente tiene una clave publica determinada
+ *                      para su uso en la conexion TLS, si no, rechazar la peticion
+ * @return int fd de la conexion o -1 si error
+ */
+int tls_accept_and_handshake(struct TLSContext *gen_context, struct TLSContext **context, int sock_fd, char *expected_pkey);
+
 #endif /* RED_H */

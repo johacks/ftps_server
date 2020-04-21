@@ -190,93 +190,6 @@ struct TLSCertificate;
 #define TLS_SERVER_RANDOM_SIZE      32
 #define TLS_MAX_SESSION_ID          32
 
-struct TLSContext {
-    unsigned char remote_random[TLS_CLIENT_RANDOM_SIZE];
-    unsigned char local_random[TLS_SERVER_RANDOM_SIZE];
-    unsigned char session[TLS_MAX_SESSION_ID];
-    unsigned char session_size;
-    unsigned short cipher;
-    unsigned short version;
-    unsigned char is_server;
-    struct TLSCertificate **certificates;
-    struct TLSCertificate *private_key;
-#ifdef TLS_ECDSA_SUPPORTED
-    struct TLSCertificate *ec_private_key;
-#endif
-#ifdef TLS_FORWARD_SECRECY
-    DHKey *dhe;
-    ecc_key *ecc_dhe;
-    char *default_dhe_p;
-    char *default_dhe_g;
-    const struct ECCCurveParameters *curve;
-#endif
-    struct TLSCertificate **client_certificates;
-    unsigned int certificates_count;
-    unsigned int client_certificates_count;
-    unsigned char *master_key;
-    unsigned int master_key_len;
-    unsigned char *premaster_key;
-    unsigned int premaster_key_len;
-    unsigned char cipher_spec_set;
-    TLSCipher crypto;
-    TLSHash *handshake_hash;
-    
-    unsigned char *message_buffer;
-    unsigned int message_buffer_len;
-    uint64_t remote_sequence_number;
-    uint64_t local_sequence_number;
-    
-    unsigned char connection_status;
-    unsigned char critical_error;
-    unsigned char error_code;
-    
-    unsigned char *tls_buffer;
-    unsigned int tls_buffer_len;
-    
-    unsigned char *application_buffer;
-    unsigned int application_buffer_len;
-    unsigned char is_child;
-    unsigned char exportable;
-    unsigned char *exportable_keys;
-    unsigned char exportable_size;
-    char *sni;
-    unsigned char request_client_certificate;
-    unsigned char dtls;
-    unsigned short dtls_epoch_local;
-    unsigned short dtls_epoch_remote;
-    unsigned char *dtls_cookie;
-    unsigned char dtls_cookie_len;
-    unsigned char dtls_seq;
-    unsigned char *cached_handshake;
-    unsigned int cached_handshake_len;
-    unsigned char client_verified;
-    // handshake messages flags
-    unsigned char hs_messages[11];
-    void *user_data;
-    struct TLSCertificate **root_certificates;
-    unsigned int root_count;
-#ifdef TLS_ACCEPT_SECURE_RENEGOTIATION
-    unsigned char *verify_data;
-    unsigned char verify_len;
-#endif
-#ifdef WITH_TLS_13
-    unsigned char *finished_key;
-    unsigned char *remote_finished_key;
-    unsigned char *server_finished_hash;
-#endif
-#ifdef TLS_CURVE25519
-    unsigned char *client_secret;
-#endif
-    char **alpn;
-    unsigned char alpn_count;
-    char *negotiated_alpn;
-    unsigned int sleep_until;
-    unsigned short tls13_version;
-#ifdef TLS_12_FALSE_START
-    unsigned char false_start;
-#endif
-};
-
 struct TLSCertificate {
     unsigned short version;
     unsigned int algorithm;
@@ -405,6 +318,7 @@ int tls_parse_message(struct TLSContext *context, unsigned char *buf, int buf_le
 int tls_certificate_verify_signature(struct TLSCertificate *cert, struct TLSCertificate *parent);
 int tls_certificate_chain_is_valid(struct TLSCertificate **certificates, int len);
 int tls_certificate_chain_is_valid_root(struct TLSContext *context, struct TLSCertificate **certificates, int len);
+int tls_context_check_client_certificate(char *pkey, struct TLSContext *ctx);
 
 /*
   Add a certificate or a certificate chain to the given context, in PEM form.
@@ -553,5 +467,4 @@ int tls_remote_error(struct TLSContext *context);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
 #endif

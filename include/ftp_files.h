@@ -36,6 +36,7 @@ typedef struct _data_conn
     int is_passive; /*!< Indica si la conexion es de tipo activo o pasivo */
     int socket_fd; /*!< Descriptor del socket en modo pasivo */
     int conn_fd; /*!< Descriptor de la conexion en modo activo y pasivo */
+    TLS *context; /*!< Contexto TLS de conexion de datos */
     char client_ip[sizeof("XXX.XXX.XXX.XXX")]; /*!< Direccion ip del cliente para una conexion en modo activo */
     int client_port; /*!< Puerto del cliente para una conexion en modo activo */
     int abort; /*!< Indica que hay que abortar la transmision actual */

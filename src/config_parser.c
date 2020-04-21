@@ -19,6 +19,8 @@ int get_max_passive_ports(serverconf *server_conf, cfg_t *cfg);
 int get_ftp_host(serverconf *server_conf, cfg_t *cfg);
 int get_max_sessions(serverconf *server_conf, cfg_t *cfg);
 int get_type(serverconf *server_conf, cfg_t *cfg);
+int get_certificate_path(serverconf *server_conf, cfg_t *cfg);
+int get_private_key_path(serverconf *server_conf, cfg_t *cfg);
 
 /**
  * @brief Parsea la informacion del fichero server.conf para configurar el servidor al iniciarse
@@ -39,6 +41,8 @@ int parse_server_conf(serverconf *server_conf)
         CFG_STR(TYPE, TYPE_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_USER, FTP_USER_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_HOST, FTP_HOST_DEFAULT, CFGF_NONE),
+        CFG_STR(CERTIFICATE_PATH, CERTIFICATE_PATH_DEFAULT, CFGF_NONE),
+        CFG_STR(PRIVATE_KEY_PATH, PRIVATE_KEY_PATH_DEFAULT, CFGF_NONE),
         CFG_END()
     };
 
@@ -54,6 +58,8 @@ int parse_server_conf(serverconf *server_conf)
                           || get_max_passive_ports(server_conf, cfg) < 0
                           || get_ftp_host(server_conf, cfg) < 0
                           || get_type(server_conf, cfg) < 0
+                          || get_private_key_path(server_conf, cfg) < 0
+                          || get_certificate_path(server_conf, cfg) < 0
                           || get_max_sessions(server_conf, cfg) < 0);
     cfg_free(cfg);
     return res;
@@ -108,6 +114,56 @@ int get_server_root(serverconf *server_conf, cfg_t *cfg)
     if ( !realpath(path, server_conf->server_root) )
     {
         printf("Server root incorrecto\n");
+        return -1;
+    }
+    return 1;
+}
+
+/**
+ * @brief Recoge y limpia certificate path
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param cfg Resultado del parseo
+ * @return int menor que 0 si error
+ */
+int get_certificate_path(serverconf *server_conf, cfg_t *cfg)
+{
+    char *path = cfg_getstr(cfg, CERTIFICATE_PATH);
+    size_t path_len = strlen(path);
+
+    if ( !path_len || path_len >= CERTIFICATE_PATH_MAX )
+    {
+        printf("Path al certificado %s\n", (path_len) ? "no proporcionado" : "demasiado largo");
+        return -1;
+    }
+    if ( !realpath(path, server_conf->certificate_path) )
+    {
+        printf("Path al certificado incorrecto\n");
+        return -1;
+    }
+    return 1;
+}
+
+/**
+ * @brief Recoge y limpia private key path
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param cfg Resultado del parseo
+ * @return int menor que 0 si error
+ */
+int get_private_key_path(serverconf *server_conf, cfg_t *cfg)
+{
+    char *path = cfg_getstr(cfg, PRIVATE_KEY_PATH);
+    size_t path_len = strlen(path);
+
+    if ( !path_len || path_len >= PRIVATE_KEY_PATH_MAX )
+    {
+        printf("Path al fichero de clave privada %s\n", (path_len) ? "no proporcionado" : "demasiado largo");
+        return -1;
+    }
+    if ( !realpath(path, server_conf->private_key_path) )
+    {
+        printf("Path al fichero de clave privada incorrecto\n");
         return -1;
     }
     return 1;

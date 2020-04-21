@@ -916,12 +916,107 @@ typedef struct {
 } TLSCipher;
 
 typedef struct {
+    int iana;
+    void *x;
+    void *y;
+    void *p;
+    void *g;
+} DHKey;
+
+typedef struct {
     hash_state hash;
 #ifdef TLS_LEGACY_SUPPORT
     hash_state hash2;
 #endif
     unsigned char created;
 } TLSHash;
+
+struct TLSContext {
+    unsigned char remote_random[TLS_CLIENT_RANDOM_SIZE];
+    unsigned char local_random[TLS_SERVER_RANDOM_SIZE];
+    unsigned char session[TLS_MAX_SESSION_ID];
+    unsigned char session_size;
+    unsigned short cipher;
+    unsigned short version;
+    unsigned char is_server;
+    struct TLSCertificate **certificates;
+    struct TLSCertificate *private_key;
+#ifdef TLS_ECDSA_SUPPORTED
+    struct TLSCertificate *ec_private_key;
+#endif
+#ifdef TLS_FORWARD_SECRECY
+    DHKey *dhe;
+    ecc_key *ecc_dhe;
+    char *default_dhe_p;
+    char *default_dhe_g;
+    const struct ECCCurveParameters *curve;
+#endif
+    struct TLSCertificate **client_certificates;
+    unsigned int certificates_count;
+    unsigned int client_certificates_count;
+    unsigned char *master_key;
+    unsigned int master_key_len;
+    unsigned char *premaster_key;
+    unsigned int premaster_key_len;
+    unsigned char cipher_spec_set;
+    TLSCipher crypto;
+    TLSHash *handshake_hash;
+    
+    unsigned char *message_buffer;
+    unsigned int message_buffer_len;
+    uint64_t remote_sequence_number;
+    uint64_t local_sequence_number;
+    
+    unsigned char connection_status;
+    unsigned char critical_error;
+    unsigned char error_code;
+    
+    unsigned char *tls_buffer;
+    unsigned int tls_buffer_len;
+    
+    unsigned char *application_buffer;
+    unsigned int application_buffer_len;
+    unsigned char is_child;
+    unsigned char exportable;
+    unsigned char *exportable_keys;
+    unsigned char exportable_size;
+    char *sni;
+    unsigned char request_client_certificate;
+    unsigned char dtls;
+    unsigned short dtls_epoch_local;
+    unsigned short dtls_epoch_remote;
+    unsigned char *dtls_cookie;
+    unsigned char dtls_cookie_len;
+    unsigned char dtls_seq;
+    unsigned char *cached_handshake;
+    unsigned int cached_handshake_len;
+    unsigned char client_verified;
+    // handshake messages flags
+    unsigned char hs_messages[11];
+    void *user_data;
+    struct TLSCertificate **root_certificates;
+    unsigned int root_count;
+#ifdef TLS_ACCEPT_SECURE_RENEGOTIATION
+    unsigned char *verify_data;
+    unsigned char verify_len;
+#endif
+#ifdef WITH_TLS_13
+    unsigned char *finished_key;
+    unsigned char *remote_finished_key;
+    unsigned char *server_finished_hash;
+#endif
+#ifdef TLS_CURVE25519
+    unsigned char *client_secret;
+#endif
+    char **alpn;
+    unsigned char alpn_count;
+    char *negotiated_alpn;
+    unsigned int sleep_until;
+    unsigned short tls13_version;
+#ifdef TLS_12_FALSE_START
+    unsigned char false_start;
+#endif
+};
 
 #ifdef TLS_FORWARD_SECRECY
 #define mp_init(a)                           ltc_mp.init(a)
@@ -942,14 +1037,6 @@ typedef struct {
 #define mp_mod(a, b, c)                      ltc_mp.mpdiv(a, b, NULL, c)
 #define mp_sub(a, b, c)                      ltc_mp.sub(a, b, c)
 #define mp_set(a, b)                         ltc_mp.set_int(a, b)
-
-typedef struct {
-    int iana;
-    void *x;
-    void *y;
-    void *p;
-    void *g;
-} DHKey;
 
 #ifdef WITH_TLS_13
 static DHKey ffdhe2048 = {
@@ -9922,6 +10009,14 @@ int tls_remote_error(struct TLSContext *context) {
         return TLS_GENERIC_ERROR;
 
     return context->error_code;
+}
+
+int tls_context_check_client_certificate(char *pkey, struct TLSContext *ctx)
+{
+    if ( !pkey )
+        return ctx->client_certificates_count >= 1;
+    return ctx->client_certificates_count >= 1 
+           && memcmp(pkey, ctx->client_certificates[0]->pk, ctx->client_certificates[0]->pk_len) == 0;
 }
 
 #ifdef SSL_COMPATIBLE_INTERFACE

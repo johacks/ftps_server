@@ -141,7 +141,7 @@ int set_credentials(char *user, char *pass)
     }
 
     /* Se guarda una version en sha256 de la contraseña */
-    sha256_init(&sha);
+    sha256_start(&sha);
     sha256_update(&sha, (BYTE *) correct, strlen(correct));
     sha256_final(&sha, (BYTE *) hashed_pass);
 
@@ -173,7 +173,7 @@ int validate_pass(char *pass)
         shadow_crypted = pass;
     
     /* Ahora ciframos lo anterior a sha_256 para compararlo con el sha_256 que se almacena */
-    sha256_init(&sha);
+    sha256_start(&sha);
     sha256_update(&sha, (BYTE *) shadow_crypted, strlen(shadow_crypted));
     sha256_final(&sha, (BYTE *) hashed);
 
