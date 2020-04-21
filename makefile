@@ -24,7 +24,9 @@ EXE=$(B)ftps_server
 PRS_LIB=$(L)libconfuse.a
 SHA_LIB_O=$(O)sha256.o
 SHA_LIB=$(L)sha256.a
-EXT_LIB=$(PRS_LIB) $(SHA_LIB)
+TLS_LIB_O=$(O)tlse.o $(O)curve25519.o
+TLS_LIB=$(L)libtls.a
+EXT_LIB=$(PRS_LIB) $(SHA_LIB) $(TLS_LIB)
 
 # Internas
 INT_LIB_O=$(O)red.o $(O)authenticate.o $(O)utils.o $(O)config_parser.o $(O)ftp.o $(O)callbacks.o $(O)ftp_session.o $(O)ftp_files.o
@@ -75,9 +77,19 @@ $(O)ftp_files.o: $(S)ftp_files.c $(H)ftp_files.h
 
 $(SHA_LIB): $(SHA_LIB_O)
 	ar rcs $@ $^
-	rm -rf $(SHA_LIB_O)
 
 $(O)sha256.o: $(SL)sha256.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Libreria TLS
+
+$(TLS_LIB): $(TLS_LIB_O)
+	ar rcs $@ $^
+
+$(O)curve25519.o: $(SL)curve25519.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(O)tlse.o: $(SL)tlse.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Libreria libconfuse siempre precompilada, sin target

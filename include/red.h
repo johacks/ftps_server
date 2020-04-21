@@ -23,6 +23,7 @@
 #include <netinet/tcp.h>  /* TCP_CORK */
 #include <netdb.h>        /* Permite identificar mediante el nombre un protocolo */
 #include "utils.h"
+#include "tlse.h"
          
 
 /* Strings asociados a protocolos */

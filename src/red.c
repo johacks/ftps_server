@@ -12,12 +12,116 @@
 #include <ctype.h>
 #include "red.h"
 
+/**
+ * @brief Lee contenido de un fichero a un buffer
+ * https://github.com/eduardsui/tlse
+ * @param fname Nombre del fichero
+ * @param buf Buffer destino
+ * @param max_len Tamaño maximo de buffer
+ * @return int menor o igual que 0 si error
+ */
+int read_from_file(const char *fname, char *buf, int max_len) 
+{
+    FILE *f = fopen(fname, "rb");
+    if ( !f )
+        return 0;
+    int size = fread(buf, 1, max_len - 1, f);
+    buf[size > 0 ? size : 0] = 0; /* 0 de fin de cadena */
+    fclose(f);
+    return size;
+}
+
+/**
+ * @brief Carga clave y certificado del servidor al contexto
+ * https://github.com/eduardsui/tlse
+ * @param context Contexto TLS
+ * @param fname Nombre del fichero pem con certificado
+ * @param priv_fname Nombre del fichero pem con clave privada
+ * 
+ * @return int 1 si todo ok, 0 si error
+ */
+int load_keys(struct TLSContext *context, char *fname, char *priv_fname) 
+{
+    unsigned char buf[0xFFFF];
+    unsigned char buf2[0xFFFF];
+    int size = read_from_file(fname, buf, 0xFFFF); /* Lee el certificado */
+    int size2 = read_from_file(priv_fname, buf2, 0xFFFF); /* Lee clave privada */
+    if (size > 0 && context) 
+    {
+        return tls_load_certificates(context, buf, size) > 0 /* Carga certificado */
+               && tls_load_private_key(context, buf2, size2) > 0; /* Carga clave privada */
+    }
+    return 0;
+}
+
+/**
+ * @brief Manda bytes de protocolo TLS que quedan pendientes de envio
+ * 
+ * @param client_sock Socket al que se envian
+ * @param context Contexto TLS
+ * @return int Error si menor que 0
+ */
+int send_pending(int client_sock, struct TLSContext *context) 
+{
+    unsigned int out_buffer_len = 0;
+    const unsigned char *out_buffer = tls_get_write_buffer(context, &out_buffer_len); /* Bytes TLS pendientes de envio */
+    unsigned int out_buffer_index = 0;
+    int send_res = 0;
+    /* Envia normalmente los bytes por el socket */
+    send_res = send(client_sock, out_buffer, out_buffer_len, MSG_NOSIGNAL);
+    tls_buffer_clear(context);
+    return send_res;
+}
+
+/**
+ * @brief Digiere un mensaje tls del socket 
+ * 
+ * @param tls_context Contexto TLS
+ * @param conn_fd descriptor de la conexion
+ * @param buf Buffer destino
+ * @param buf_len Tamaño maximo de buffer
+ * @param flags flags de recv asociado
+ * @return int bytes leido o menor que 0 si error
+ */
+int digest_tls(struct TLSContext *tls_context, int conn_fd, char *buf, ssize_t buf_len, int flags)
+{
+    ssize_t read_b;
+    if ( (read_b = recv(conn_fd, buf, buf_len, flags)) > 0 )
+    {
+        if ( tls_consume_stream(tls_context, buf, read_b, NULL) < 0 )
+            return -1;
+        if ( send_pending(conn_fd, tls_context) < 0 )
+            return -1;
+    }
+    return read_b;
+}
+
+/**
+ * @brief Recibe de manera segura un mensaje
+ * 
+ * @param tls_context Contexto TLS
+ * @param conn_fd Descriptor de la conexion
+ * @param buf Buffer destino
+ * @param buf_len Tamaño maximo de buffer
+ * @param flags Flags de recv
+ * @return int Mayor que 0 si bytes leidos, 0 si se pierde conexion TLS, -1 si error
+ */
+int srecv(struct TLSContext *tls_context, int conn_fd, char *buf, ssize_t buf_len, int flags)
+{
+    char buf2[buf_len];
+    if ( digest_tls(tls_context, conn_fd, buf2, buf_len, flags) < 0 )
+        return -1;
+    if ( tls_established(tls_context) )
+        return tls_read(tls_context, buf, buf_len);
+    return 0;
+}
+
 /* Obtenido de https://stackoverflow.com/questions/4181784/how-to-set-socket-timeout-in-c-when-making-multiple-connections */
 /**
  * @brief Añade opciones a un socket para que las operaciones de escritura y lectura de un socket tengan un timeout maximo
  * 
  * @param socket_fd Socket a modificar
- * @param seconds Numero de segundos de tiemout
+ * @param seconds Numero de segundos de timeout
  */
 int set_socket_timeouts(int socket_fd, int seconds)
 {
