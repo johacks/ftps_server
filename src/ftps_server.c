@@ -22,7 +22,7 @@
 #define USING_AUTHBIND "--using-authbind" /*!< Indica ejecuciona actual con authbind */
 #define THREAD_CLOSE_WAIT 2 /*!< Maximo de tiempo que se espera que se cierre un hilo */
 #define CONTROL_SOCKET_TIMEOUT 150 /*!< Timeout maximo de conexion de control */
-#define DEBUG
+// #define DEBUG
 
 void free_resources(int socket_control_fd, int socket_data_fd);
 void accept_loop(int socket_control_fd);

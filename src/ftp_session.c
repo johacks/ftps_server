@@ -25,7 +25,7 @@ void init_session_info(session_info *session, session_info *previous_session)
         session->authenticated = 0;
         session->context = NULL;
         session->secure = 0;
-        session->pbsz_sent = 0;
+        session->pbsz_sent = 1;
         strcpy(session->current_dir, "/");
         return;
     }

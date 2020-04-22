@@ -17,7 +17,7 @@
 #include "ftp_files.h"
 #define SEND_BUFFER XXXL_SZ /*!< Tamaño de buffer de envio */
 #define IP_LEN sizeof("xxx.xxx.xxx.xxx") /*!< Tamaño de ipv4 */
-#define LS_CMD "ls -l1 --numeric-uid-gid --hyperlink=never --time-style=iso --color=never " /*!< Comando ls */
+#define LS_CMD "ls -l1 --numeric-uid-gid --hyperlink=never --time-style=iso --color=never '" /*!< Comando ls */
 #define IP_FIELD_LEN sizeof("xxx") /*!< Tamaño de un subcampo de ipv4 */
 #define VIRTUAL_ROOT "/" /*!< Raiz */
 
@@ -103,6 +103,7 @@ FILE *list_directories(char *path, char *current_dir)
     /* Recoger path */
     strcpy(buff, LS_CMD);
     if ( get_real_path(current_dir, path, &buff[strlen(buff)]) < 0 ) return NULL;
+    strcat(buff, "'"); /* Quote de nombre de fichero */
     /* Llamada a ls, redirigiendo el output */
     FILE *output = popen(buff, "r");
     return output;
@@ -398,7 +399,6 @@ char *make_port_string(char *ip, int port, char *buf)
     strcat(&buf[i++], ","); /* Y una coma al final */
     div_t p1p2 = div(port, 256); /* Obtener ambos numeros del puerto y ponerlos al final */
     sprintf(&buf[i], "%d,%d", p1p2.quot, p1p2.rem);
-    printf("%d\n", port);
     return buf;
 }
 
