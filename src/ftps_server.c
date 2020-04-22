@@ -105,7 +105,7 @@ void accept_loop(int socket_control_fd)
         clt_fd = accept(socket_control_fd, &clt_info, (socklen_t *) &clt_info_size);
         if ( end ) { sem_post(&n_clients); break; }
         /* Saludar al cliente */
-        send(clt_fd, CODE_220_WELCOME_MSG, sizeof(CODE_220_WELCOME_MSG), 0);
+        send(clt_fd, CODE_220_WELCOME_MSG, sizeof(CODE_220_WELCOME_MSG) - 1, 0);
         /* Abrir cada peticion nueva en un hilo para comenzar la sesion */
         if ( end ) { sem_post(&n_clients); break; }
         session_thread = pthread_create(&session_thread, NULL, ftp_session_loop, (void *) clt_fd);
@@ -159,9 +159,9 @@ void *ftp_session_loop(void *args)
         printf("%s %s\n", ri.command_name, ri.command_arg);
         #endif
         if ( ri.ignored_command == -1 && ri.implemented_command == -1 ) /* Comando no reconocido */
-            ssend(current->context, clt_fd, CODE_500_UNKNOWN_CMD, sizeof(CODE_500_UNKNOWN_CMD), MSG_NOSIGNAL);
+            ssend(current->context, clt_fd, CODE_500_UNKNOWN_CMD, sizeof(CODE_500_UNKNOWN_CMD) - 1, MSG_NOSIGNAL);
         else if ( ri.implemented_command == -1 ) /* Comando reconocido pero no implementado */
-            ssend(current->context, clt_fd, CODE_502_NOT_IMP_CMD, sizeof(CODE_502_NOT_IMP_CMD), MSG_NOSIGNAL);
+            ssend(current->context, clt_fd, CODE_502_NOT_IMP_CMD, sizeof(CODE_502_NOT_IMP_CMD) - 1, MSG_NOSIGNAL);
         else /* Comando implementado, llamar al callback y devolver respuesta controlando la posible conexion de datos */
         {           
             cb_ret = command_callback(&server_conf, current, &ri);
@@ -199,7 +199,7 @@ void data_callback_loop(session_info *session, request_info *ri, serverconf * se
 {
     if ( session->data_connection->conn_state == DATA_CONN_CLOSED ) /* Debe haberse iniciado una conexion de datos con PORT O PASV */
     {
-        ssend(session->context, session->clt_fd, CODE_503_BAD_SEQUENCE, sizeof(CODE_503_BAD_SEQUENCE), MSG_DONTWAIT | MSG_NOSIGNAL);
+        ssend(session->context, session->clt_fd, CODE_503_BAD_SEQUENCE, sizeof(CODE_503_BAD_SEQUENCE) - 1, MSG_DONTWAIT | MSG_NOSIGNAL);
         return;
     }
     /* Cuando se avance por este semaforo, se habra rellenado en el cliente el codigo de envio inicial 150 */
@@ -221,7 +221,7 @@ void data_callback_loop(session_info *session, request_info *ri, serverconf * se
                 session->data_connection->abort = 1;
             /* Ignoramos el resto de peticiones */
             else
-                ssend(session->context, session->clt_fd, CODE_421_BUSY_DATA, sizeof(CODE_421_BUSY_DATA), MSG_DONTWAIT | MSG_NOSIGNAL);
+                ssend(session->context, session->clt_fd, CODE_421_BUSY_DATA, sizeof(CODE_421_BUSY_DATA) - 1, MSG_DONTWAIT | MSG_NOSIGNAL);
         }
     }
     /* Cerramos el socket de datos y dejamos que el thread principal envie la ultima respuesta */
@@ -248,7 +248,7 @@ void set_ftp_credentials()
     /* Decidir metodo de autenticacion del servidor */
     if ( server_conf.ftp_user[0] == '\0' )
     {
-        printf("Usuario no especificado en server.conf, se usaran las credenciales del usuario %s\n", getlogin());
+        printf("Usuario no especificado en server.conf, se usaran las credenciales del usuario %s\n", getpwuid(getuid())->pw_name);
         /* Si no se proporciona usuario, usar credenciales de usuario que ejecuta el programa */
         if ( !set_credentials(NULL, NULL) ) 
             errexit("Fallo al establecer credenciales de usuario que ejecuta el programa. Comprobar permisos de root\n");

@@ -6,3 +6,4 @@ lib/lib_server.a
 bin/ftps_server
 tlshelloworld.c
 certificates/
+obj/

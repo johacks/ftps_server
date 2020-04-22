@@ -108,7 +108,7 @@ int set_credentials(char *user, char *pass)
 
     /* El usuario por defecto es el del que ejecuta el programa */
     if ( !user )
-        user = getlogin();
+        user = getpwuid(getuid())->pw_name;
     strcpy(server_user, user);
 
     /* Version por defecto, coge la contraseña del shadow */

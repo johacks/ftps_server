@@ -28,7 +28,7 @@ static const callback callbacks[IMP_COMMANDS_TOP] = { IMPLEMENTED_COMMANDS };
 {                                                                                       \
     if ( !s->authenticated )                                                            \
     {                                                                                   \
-        set_command_response(c, CODE_530_NO_LOGIN, sizeof(CODE_530_NO_LOGIN));          \
+        set_command_response(c, CODE_530_NO_LOGIN);                                     \
         return CALLBACK_RET_PROCEED;                                                    \
     }                                                                                   \
 }
@@ -37,7 +37,7 @@ static const callback callbacks[IMP_COMMANDS_TOP] = { IMPLEMENTED_COMMANDS };
 {                                                                                       \
     if ( get_real_path(s->current_dir, c->command_arg, buf) < ((new) ? 0 : 1) )         \
     {                                                                                   \
-        set_command_response(c, CODE_550_NO_ACCESS, sizeof(CODE_550_NO_ACCESS));        \
+        set_command_response(c, CODE_550_NO_ACCESS);                                    \
         return CALLBACK_RET_PROCEED;                                                    \
     }                                                                                   \
 }
@@ -798,14 +798,14 @@ uintptr_t AUTH_cb(serverconf *server_conf, session_info *session, request_info *
         return CALLBACK_RET_PROCEED;
     }
     char *buf = alloca(XXXL_SZ);
-    send(session->clt_fd, CODE_234_START_NEG, sizeof(CODE_234_START_NEG), MSG_NOSIGNAL);
+    send(session->clt_fd, CODE_234_START_NEG, sizeof(CODE_234_START_NEG) - 1, MSG_NOSIGNAL);
     session->context = tls_accept(server_conf->server_ctx);
     tls_request_client_certificate(session->context); /* Necesitamos certificado del cliente */
     digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Envia peticion de certificado al cliente */
     digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Recibe certificado del cliente */
     if ( !tls_context_check_client_certificate(NULL, session->context) ) /* Comprueba certificado del cliente */
     {
-        ssend(session->context, session->clt_fd, CODE_421_BAD_TLS_NEG, sizeof(CODE_421_BAD_TLS_NEG), MSG_NOSIGNAL);
+        ssend(session->context, session->clt_fd, CODE_421_BAD_TLS_NEG, sizeof(CODE_421_BAD_TLS_NEG) - 1, MSG_NOSIGNAL);
         tls_destroy_context(session->context);
         session->context = NULL;
         return CALLBACK_RET_END_CONNECTION;
