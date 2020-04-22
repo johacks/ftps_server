@@ -10019,6 +10019,13 @@ int tls_context_check_client_certificate(char *pkey, struct TLSContext *ctx)
            && memcmp(pkey, ctx->client_certificates[0]->pk, ctx->client_certificates[0]->pk_len) == 0;
 }
 
+char *get_client_public_key(struct TLSContext *ctx)
+{
+    if ( !ctx->client_certificates_count )
+        return NULL;
+    return (char *) ctx->client_certificates[0]->pk;
+}
+
 #ifdef SSL_COMPATIBLE_INTERFACE
 
 int  SSL_library_init() {

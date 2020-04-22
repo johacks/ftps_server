@@ -9,12 +9,13 @@ S=src/
 H=include/
 SL=srclib/
 B=bin/
+V=valgrind/
 DIRECTORIES=$(O) $(L) $(D) $(S) $(H) $(SL) $(B)
 
 # Compilacion y ejecucion con valgrind
 CC=gcc
 VGLOGS=vglogs/
-VFLAGS= --leak-check=full --show-leak-kinds=all --trace-children=no --track-origins=yes
+VFLAGS= --leak-check=full --show-leak-kinds=all --trace-children=yes --track-origins=yes --suppressions=$(V)suppression_file
 CFLAGS= -g -Wall -I $(L) -I $(H) -I $(SL)
 EXE=$(B)ftps_server
 
@@ -115,9 +116,8 @@ clean:
 clear:
 	rm -rf $(INT_LIB) $(VGLOGS)* $(D)
 
-# Concatena todos los logs de valgrind en uno
-pretty_vglog:
-	cat $(VGLOGS)* > $(VGLOGS)execlog.txt
-
 runv:
 	valgrind $(VFLAGS) $(B)ftps_server
+
+runv_authbind:
+	authbind --deep valgrind $(VFLAGS) --trace-children-skip=*authbind/helper $(B)ftps_server --using-authbind

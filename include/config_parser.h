@@ -16,7 +16,7 @@
 
 #define SERVER_ROOT "server_root" /*!< Campo de directorio base */
 #define SERVER_ROOT_DEFAULT "~/" /*!< Valor por defecto directorio base */
-#define SERVER_ROOT_MAX MEDIUM_SZ + 1 /*!< Tamaño maximo de server root */
+#define SERVER_ROOT_MAX XL_SZ + 1 /*!< Tamaño maximo de server root */
 
 #define MAX_PASSIVE_PORTS "max_passive_ports" /*!< Campo de numero maximo de puertos abiertos en modo pasivo */
 #define MAX_PASSIVE_PORTS_DEFAULT 100 /*!< Valor por defecto del maximo de puertos en modo pasivo */
@@ -37,11 +37,11 @@
 
 #define CERTIFICATE_PATH "certificate_path" /*!< Campo de path al certificado */
 #define CERTIFICATE_PATH_DEFAULT "" /*!< Valor por defecto path al certificado */
-#define CERTIFICATE_PATH_MAX MEDIUM_SZ + 1 /*!< Tamaño maximo de path al certificado */
+#define CERTIFICATE_PATH_MAX XL_SZ + 1 /*!< Tamaño maximo de path al certificado */
 
 #define PRIVATE_KEY_PATH "private_key_path" /*!< Campo de path al fichero de clave privada */
 #define PRIVATE_KEY_PATH_DEFAULT "" /*!< Valor por defecto directorio base */
-#define PRIVATE_KEY_PATH_MAX MEDIUM_SZ + 1 /*!< Tamaño maximo de server path al fichero de clave privada */
+#define PRIVATE_KEY_PATH_MAX XL_SZ + 1 /*!< Tamaño maximo de server path al fichero de clave privada */
 
 typedef struct _serverconf
 {

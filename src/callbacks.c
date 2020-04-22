@@ -104,29 +104,48 @@ typedef struct _data_thread_args
     return NULL;                                                                        \
 }
 
+/**
+ * @brief Crea una conexion segura en el modo correspondiente a pasivo o activo
+ * 
+ * @param server_conf Configuracion del servidor
+ * @param session Sesion FTP
+ * @param command Comando que genera el callback, aqui se guardara la respuesta
+ * @return int 1 si todo ok, -1 si error
+ */
+int make_data_conn(serverconf *server_conf, session_info *session, request_info *command)
+{
+    data_conn *dc = session->data_connection;
+    char *expected_public_key = get_client_public_key(session->context);
+    if ( !session->authenticated )
+        set_command_response(command, CODE_530_NO_LOGIN);
+    else if ( dc->conn_state != DATA_CONN_AVAILABLE || !expected_public_key ) /* Ausencia de un PASV o PORT */
+        set_command_response(command, CODE_503_BAD_SEQUENCE);
+    else if ( !dc->is_passive )
+    {
+        /* Se conecta, comprobando que el otro extremo usa el mismo certificado que en la conexion de control */
+        dc->conn_fd = connect_and_handshake(server_conf->server_ctx, &(dc->context), expected_public_key,
+                                            dc->client_port, FTP_DATA_PORT, dc->client_ip, server_conf->ftp_host);
+        set_socket_timeouts(dc->conn_fd, DATA_SOCKET_TIMEOUT);
+    }
+    else /* Modo pasivo */
+        dc->conn_fd = tls_accept_and_handshake(server_conf->server_ctx, &(dc->context), dc->socket_fd, expected_public_key);
+    /* Comprobar todo ha ido bien */    
+    if ( dc->conn_fd < 0 )
+        set_command_response(command, CODE_425_CANNOT_OPEN_DATA, strerror(errno));
+    else /* Todo OK al establecer una conexion segura */
+    {
+        dc->conn_state = DATA_CONN_BUSY;
+        return 1;
+    }
+    return -1;
+}
+
 /* Esta macro comprueba que hay una conexion de datos disponible, deshaciendo los semaforos
 correspondientes y saliendo del thread si no es el caso */
-#define CHECK_DATA_PORT(t, d)                                                           \
+#define CHECK_DATA_PORT(t)                                                              \
 {                                                                                       \
-    if ( d->conn_state != DATA_CONN_AVAILABLE )                                         \
-    {                                                                                   \
-        set_command_response(t->command, CODE_503_BAD_SEQUENCE);                        \
+    if ( make_data_conn(t->server_conf, t->session, t->command) < 0 )                   \
         THREAD_PREMATURE_EXIT(t)                                                        \
-    }                                                                                   \
-    if ( !d->is_passive )                                                               \
-    {                                                                                   \
-        d->conn_fd = socket_clt_connection(FTP_DATA_PORT,                               \
-            d->client_ip, d->client_port, t->server_conf->ftp_host);                    \
-        if ( d->conn_fd < 0 )                                                           \
-        {                                                                               \
-            set_command_response(t->command, CODE_425_CANNOT_OPEN_DATA,strerror(errno));\
-            THREAD_PREMATURE_EXIT(t);                                                   \
-        }                                                                               \
-        set_socket_timeouts(d->conn_fd, DATA_SOCKET_TIMEOUT);                           \
-    }                                                                                   \
-    else                                                                                \
-        d->conn_fd = accept(d->socket_fd, NULL, 0);                                     \
-    d->conn_state = DATA_CONN_BUSY;                                                     \
 }                                                                                       
 
 /**
@@ -138,7 +157,7 @@ correspondientes y saliendo del thread si no es el caso */
 void *RETR_cb_thread(void *args)
 {
     data_thread_args *t_args = (data_thread_args *) args;
-    CHECK_DATA_PORT(t_args, t_args->session->data_connection) /* Comprueba conexion de datos lista */
+    CHECK_DATA_PORT(t_args) /* Crea conexion de datos */
     /* Obtiene el elemento a dar */
     char path[XXL_SZ] = "";
     if ( get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 1 || !path_is_file(path) )
@@ -156,7 +175,8 @@ void *RETR_cb_thread(void *args)
         set_command_response(t_args->command, CODE_550_NO_ACCESS);
     else
     {
-        ssize_t sent = send_file(t_args->session->data_connection->conn_fd, f, t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
+        ssize_t sent = send_file(t_args->session->data_connection->context, t_args->session->data_connection->conn_fd,
+                                 f, t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
         if ( sent < 0 )
             set_command_response(t_args->command, CODE_550_NO_ACCESS);
         else
@@ -177,7 +197,7 @@ void *RETR_cb_thread(void *args)
 void *LIST_cb_thread(void *args)
 {
     data_thread_args *t_args = (data_thread_args *) args;
-    CHECK_DATA_PORT(t_args, t_args->session->data_connection) /* Comprueba conexion de datos lista */
+    CHECK_DATA_PORT(t_args) /* Crea conexion de datos */
     /* Obtiene el elemento a dar */
     char path[XXL_SZ] = "";
     if ( get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 1)
@@ -195,7 +215,8 @@ void *LIST_cb_thread(void *args)
         set_command_response(t_args->command, CODE_550_NO_ACCESS);
     else
     {
-        ssize_t sent = send_file(t_args->session->data_connection->conn_fd, f, t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
+        ssize_t sent = send_file(t_args->session->data_connection->context, t_args->session->data_connection->conn_fd,
+                                 f, t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
         if ( sent < 0 )
             set_command_response(t_args->command, CODE_550_NO_ACCESS);
         else
@@ -216,7 +237,7 @@ void *LIST_cb_thread(void *args)
 void *STOR_cb_thread(void *args)
 {
     data_thread_args *t_args = (data_thread_args *) args;
-    CHECK_DATA_PORT(t_args, t_args->session->data_connection) /* Comprueba conexion de datos lista */
+    CHECK_DATA_PORT(t_args) /* Crea conexion de datos */
     /* Obtiene el elemento a dar */
     char path[XXL_SZ] = "";
     if ( get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 0 )
@@ -234,7 +255,8 @@ void *STOR_cb_thread(void *args)
         set_command_response(t_args->command, (errno == EACCES) ? CODE_550_NO_ACCESS : CODE_452_NO_SPACE);
     else /* Leer fichero */
     {
-        ssize_t sent = read_to_file(f, t_args->session->data_connection->conn_fd, t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
+        ssize_t sent = read_to_file(t_args->session->data_connection->context, f, t_args->session->data_connection->conn_fd,
+                                    t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
         if ( sent < 0 )
             set_command_response(t_args->command, CODE_451_DATA_CONN_LOST);
         else

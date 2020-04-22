@@ -188,4 +188,18 @@ int sclose(struct TLSContext **tls_context, int *fd);
  */
 int tls_accept_and_handshake(struct TLSContext *gen_context, struct TLSContext **context, int sock_fd, char *expected_pkey);
 
+/**
+ * @brief Conectarse de forma segura a un servidor
+ * 
+ * @param gen_ctx Contexto TLS general
+ * @param ctx Contexto TLS a rellenar
+ * @param expected_pkey Clave publica que se espera del certificado del cliente
+ * @param port Puerto servidor
+ * @param clt_port Puerto cliente
+ * @param srv_ip Ip servidor
+ * @param clt_ip Ip cliente
+ * @return int 1 si todo ok, -1 si error
+ */
+int connect_and_handshake(struct TLSContext *gen_ctx, struct TLSContext **ctx, char *expected_pkey, int port, int clt_port, char *srv_ip, char *clt_ip);
+
 #endif /* RED_H */

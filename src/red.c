@@ -159,6 +159,29 @@ int sclose(struct TLSContext **tls_context, int *fd)
 }
 
 /**
+ * @brief Handshake TLS
+ * 
+ * @param gen_context Contexto TLS general
+ * @param context Contexto TLS a rellenar para la sesion
+ * @param expected_pkey Si no NULL, comprobar que la clave publica del certificado coincide con una determinada
+ * @param conn_fd Conexion creada
+ * @return int 1 si todo ok, 0 si fallo en certificado cliente, -1 si error en la ocnexion
+ */
+int tls_handshake(struct TLSContext *gen_context, struct TLSContext **context, char *expected_pkey, int conn_fd)
+{
+    char buf[XXXL_SZ];
+    if ( conn_fd < 0 )
+        return -1;
+    *context = tls_accept(gen_context); /* Crear un nuevo contexto para la sesion */
+    if ( !*context )
+        return -1;
+    tls_request_client_certificate(*context); /* Necesitamos certificado del cliente */
+    digest_tls(*context, conn_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Envia peticion de certificado al cliente */
+    digest_tls(*context, conn_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Recibe certificado del cliente */
+    return tls_context_check_client_certificate(expected_pkey, *context); /* Comprueba certificado correcto */
+}
+
+/**
  * @brief Acepta a un nuevo cliente y realiza el handshake
  * 
  * @param gen_context Contexto TLS general
@@ -170,8 +193,7 @@ int sclose(struct TLSContext **tls_context, int *fd)
  */
 int tls_accept_and_handshake(struct TLSContext *gen_context, struct TLSContext **context, int sock_fd, char *expected_pkey)
 {
-    int conn_fd = -1;
-    char buf[XXXL_SZ];
+    int conn_fd = -1, ret;
     do
     {
         if ( conn_fd > 0 ) /* Liberar posible cliente erroneo anterior */
@@ -181,16 +203,43 @@ int tls_accept_and_handshake(struct TLSContext *gen_context, struct TLSContext *
             close(conn_fd);
         }
         conn_fd = accept(sock_fd, NULL, 0);
-        if ( conn_fd < 0 )
-            return -1;
-        *context = tls_accept(gen_context); /* Crear un nuevo contexto para la sesion */
-        if ( !*context )
-            return -1;
-        tls_request_client_certificate(*context); /* Necesitamos certificado del cliente */
-        digest_tls(*context, conn_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Envia peticion de certificado al cliente */
-        digest_tls(*context, conn_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Recibe certificado del cliente */
+        ret = tls_handshake(gen_context, context, expected_pkey, conn_fd);
         /* No aceptar certificado si la clave publica no es la esperada */
-    } while ( !tls_context_check_client_certificate(expected_pkey, *context) );
+    } while ( !ret );
+    if ( ret < 0 )
+        return ret;
+    return conn_fd;
+}
+
+/**
+ * @brief Conectarse de forma segura a un servidor
+ * 
+ * @param gen_ctx Contexto TLS general
+ * @param ctx Contexto TLS a rellenar
+ * @param expected_pkey Clave publica que se espera del certificado del cliente
+ * @param port Puerto servidor
+ * @param clt_port Puerto cliente
+ * @param srv_ip Ip servidor
+ * @param clt_ip Ip cliente
+ * @return int 1 si todo ok, -1 si error
+ */
+int connect_and_handshake(struct TLSContext *gen_ctx, struct TLSContext **ctx, char *expected_pkey, int port, int clt_port, char *srv_ip, char *clt_ip)
+{
+    int conn_fd = -1, ret;
+    do
+    {
+        if ( conn_fd > 0 ) /* Liberar posible cliente erroneo anterior */
+        {
+            tls_close_notify(*ctx);
+            tls_destroy_context(*ctx);
+            close(conn_fd);
+        }
+        conn_fd = socket_clt_connection(clt_port, clt_ip, port, srv_ip); /* Conectarse al servidor */
+        ret = tls_handshake(gen_ctx, ctx, expected_pkey, conn_fd);
+        /* No aceptar certificado si la clave publica no es la esperada */
+    } while ( !ret );
+    if ( ret < 0 )
+        return ret;
     return conn_fd;
 }
 
@@ -203,6 +252,8 @@ int tls_accept_and_handshake(struct TLSContext *gen_context, struct TLSContext *
  */
 int set_socket_timeouts(int socket_fd, int seconds)
 {
+    if ( socket_fd < 0 )
+        return socket_fd;
     struct timeval timeout = {.tv_sec = seconds, .tv_usec = 0};
     return MIN(setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)),
                setsockopt(socket_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)));

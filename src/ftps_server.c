@@ -59,14 +59,14 @@ int main(int argc, char *argv[])
     /* Establecer manejadores de señales */
     set_handlers();
 
-    /* Inicializar el contexto TLS */
-    tls_start();
-
     /* Ahora, habria que crear el socket de control */
     int socket_control_fd = socket_srv("tcp", 10, FTP_CONTROL_PORT, server_conf.ftp_host);
     if ( socket_control_fd < 0 )
         errexit("Fallo al abrir socket de control %s\n", strerror(errno));
     set_socket_timeouts(socket_control_fd, CONTROL_SOCKET_TIMEOUT);
+    
+    /* Inicializar el contexto TLS */
+    tls_start();
 
     /* Establecer configuracion de logueo */
     set_log_conf(1, 0, NULL);
@@ -130,7 +130,7 @@ void *ftp_session_loop(void *args)
 {
     char buff[XXXL_SZ + 1];
     session_info s1, s2, *current = &s1, *previous = &s2, *aux;
-    request_info ri;
+    request_info ri = {.command_arg = "", .command_name = "", .response = "", .response_len = 0, .implemented_command = NOOP};
     intptr_t clt_fd = (intptr_t) args, cb_ret = CALLBACK_RET_PROCEED;
     data_conn dc = {.socket_fd = -1, .conn_state = DATA_CONN_CLOSED, .abort = 0, .conn_fd = -1};
     ssize_t read_b;
@@ -323,6 +323,11 @@ void tls_start()
 {
     tls_init();
     server_conf.server_ctx = tls_create_context(1, TLS_V12);
+    if ( !server_conf.server_ctx )
+        errexit("Fallo al crear contexto TLS\n");
     if ( !load_keys(server_conf.server_ctx, server_conf.certificate_path, server_conf.private_key_path) )
+    {
+        tls_destroy_context(server_conf.server_ctx);
         errexit("Fallo al cargar la clave privada y/o certificado\n");
+    }
 }

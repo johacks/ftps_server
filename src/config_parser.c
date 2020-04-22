@@ -153,14 +153,16 @@ int get_certificate_path(serverconf *server_conf, cfg_t *cfg)
  */
 int get_private_key_path(serverconf *server_conf, cfg_t *cfg)
 {
-    char *path = cfg_getstr(cfg, PRIVATE_KEY_PATH);
-    size_t path_len = strlen(path);
+    size_t path_len = strlen(cfg_getstr(cfg, PRIVATE_KEY_PATH));
+    char *path = alloca(path_len + 1);
+    strcpy(path, cfg_getstr(cfg, PRIVATE_KEY_PATH));
 
     if ( !path_len || path_len >= PRIVATE_KEY_PATH_MAX )
     {
         printf("Path al fichero de clave privada %s\n", (path_len) ? "no proporcionado" : "demasiado largo");
         return -1;
     }
+    server_conf->private_key_path[0] = '\0';
     if ( !realpath(path, server_conf->private_key_path) )
     {
         printf("Path al fichero de clave privada incorrecto\n");

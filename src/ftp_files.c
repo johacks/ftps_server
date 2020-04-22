@@ -15,7 +15,7 @@
 #include "ftp.h"
 #include "config_parser.h"
 #include "ftp_files.h"
-#define SEND_BUFFER 2048 /*!< Tamaño de buffer de envio */
+#define SEND_BUFFER XXXL_SZ /*!< Tamaño de buffer de envio */
 #define IP_LEN sizeof("xxx.xxx.xxx.xxx") /*!< Tamaño de ipv4 */
 #define LS_CMD "ls -l1 --numeric-uid-gid --hyperlink=never --time-style=iso --color=never " /*!< Comando ls */
 #define IP_FIELD_LEN sizeof("xxx") /*!< Tamaño de un subcampo de ipv4 */
@@ -203,13 +203,15 @@ int ch_to_parent_dir(char *current_dir)
 /**
  * @brief Envia el contenido de un buffer a traves de un socket con posibilidad de
  *        que se le aplique un filtro ascii
+ * 
+ * @param ctx Contexto TLS
  * @param socket_fd Descriptor del socket
  * @param buf a enviar
  * @param buf_len cuanto enviar
  * @param ascii_mode Si no 0, transformar saltos de linea a formato universal
  * @return ssize_t si menor que 0, error
  */
-ssize_t send_buffer(int socket_fd, char *buf, size_t buf_len, int ascii_mode)
+ssize_t send_buffer(struct TLSContext *ctx, int socket_fd, char *buf, size_t buf_len, int ascii_mode)
 {
     /* Transmision en modo VST ascii */
     if ( ascii_mode )
@@ -223,21 +225,22 @@ ssize_t send_buffer(int socket_fd, char *buf, size_t buf_len, int ascii_mode)
                 ascii_buf[new_buflen++] = '\r';
             ascii_buf[new_buflen++] = (buf[i] & 0x7F); /* Bit mas significativo a 0 siempre */ 
         }
-        return send(socket_fd, ascii_buf, new_buflen, MSG_NOSIGNAL); /* Enviar contenido filtrado */
+        return ssend(ctx, socket_fd, ascii_buf, new_buflen, MSG_NOSIGNAL); /* Enviar contenido filtrado */
     }
-    return send(socket_fd, buf, buf_len, MSG_NOSIGNAL); /* Enviar contenido */
+    return ssend(ctx, socket_fd, buf, buf_len, MSG_NOSIGNAL); /* Enviar contenido */
 }
 
 /**
  * @brief Enviar el contenido de f a traves de un socket
  * 
+ * @param ctx Contexto TLS
  * @param socket_fd Descriptor del socket
  * @param f Fichero a abrir
  * @param ascii_mode Modo ascii
  * @param abort_transfer Permite cancelar transferencia
  * @return ssize_t
  */
-ssize_t send_file(int socket_fd, FILE *f, int ascii_mode, int *abort_transfer)
+ssize_t send_file(struct TLSContext *ctx, int socket_fd, FILE *f, int ascii_mode, int *abort_transfer)
 {
     int aux = 0;
     ssize_t sent_b, read_b, total = 0;
@@ -248,7 +251,7 @@ ssize_t send_file(int socket_fd, FILE *f, int ascii_mode, int *abort_transfer)
     while ( !(*abort_transfer) && (read_b = fread(buf, sizeof(char), SEND_BUFFER, f)) )
     {
         if ( *abort_transfer ) return 0; /* Se puede cambiar un flag externo para cancelar la transferencia */
-        if ( (sent_b = send_buffer(socket_fd, buf, read_b, ascii_mode)) < 0 )
+        if ( (sent_b = send_buffer(ctx, socket_fd, buf, read_b, ascii_mode)) < 0 )
             return -1;
         total += sent_b;
     }
@@ -258,39 +261,41 @@ ssize_t send_file(int socket_fd, FILE *f, int ascii_mode, int *abort_transfer)
 /**
  * @brief Leer contenido de un socket a un buffer
  * 
+ * @param ctx Contexto TLS
  * @param socket_fd Socket origen
  * @param dest Buffer destino
  * @param buf_len Tamaño de buffer
  * @param ascii_mode Modo ascii
  * @return ssize_t leidos
  */
-ssize_t read_to_buffer(int socket_fd, char *dest, size_t buf_len, int ascii_mode)
+ssize_t read_to_buffer(struct TLSContext *ctx, int socket_fd, char *dest, size_t buf_len, int ascii_mode)
 {
     /* Filtrar lo leido de ascii a local (CRLF a LF) */
     if ( ascii_mode )
     {
         char *ascii_buf = alloca(buf_len);
         ssize_t n_read, new_buflen = 0;
-        if ( (n_read = recv(socket_fd, ascii_buf, buf_len, MSG_NOSIGNAL)) <= 0 )
+        if ( (n_read = srecv(ctx, socket_fd, ascii_buf, buf_len, MSG_NOSIGNAL)) <= 0 )
             return n_read;
         for ( int i = 0; i < n_read; i++ )
             if ( ascii_buf[i] != '\r' )
                 dest[new_buflen++] = ascii_buf[i];
         return new_buflen; 
     }
-    return recv(socket_fd, dest, buf_len, MSG_NOSIGNAL);
+    return srecv(ctx, socket_fd, dest, buf_len, MSG_NOSIGNAL);
 }
 
 /**
  * @brief Lee el contenido de un socket a un fichero
  * 
+ * @param ctx Contexto TLS
  * @param f Fichero destino.
  * @param socket_fd socket origen
  * @param ascii_mode Modo de trasferencia FTP
  * @param abort_transfer Permite cancelar la transferencia
  * @return ssize_t bytes leido 
  */
-ssize_t read_to_file(FILE *f, int socket_fd, int ascii_mode, int *abort_transfer)
+ssize_t read_to_file(struct TLSContext *ctx, FILE *f, int socket_fd, int ascii_mode, int *abort_transfer)
 {
     int aux = 0;
     ssize_t sent_b, read_b, total = 0;
@@ -298,7 +303,7 @@ ssize_t read_to_file(FILE *f, int socket_fd, int ascii_mode, int *abort_transfer
     if ( !abort_transfer ) abort_transfer = &aux;
 
     /* Lee de buffer en buffer hasta terminar o ser interrumpido */
-    while ( !(*abort_transfer) && ((read_b = read_to_buffer(socket_fd, buf, SEND_BUFFER, ascii_mode)) > 0) )
+    while ( !(*abort_transfer) && ((read_b = read_to_buffer(ctx, socket_fd, buf, SEND_BUFFER, ascii_mode)) > 0) )
     {
         if ( (sent_b = fwrite(buf, sizeof(char), read_b, f)) != read_b )
             return -1;

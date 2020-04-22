@@ -385,6 +385,7 @@ void tls_print_certificate(const char *fname);
 int tls_add_alpn(struct TLSContext *context, const char *alpn);
 int tls_alpn_contains(struct TLSContext *context, const char *alpn, unsigned char alpn_size);
 const char *tls_alpn(struct TLSContext *context);
+char *get_client_public_key(struct TLSContext *ctx);
 // useful when renewing certificates for servers, without the need to restart the server
 int tls_clear_certificates(struct TLSContext *context);
 int tls_make_ktls(struct TLSContext *context, int socket);

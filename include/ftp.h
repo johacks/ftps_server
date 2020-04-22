@@ -14,8 +14,8 @@
 #include "utils.h"
 
 #define MAX_FTP_COMMAND_NAME 4 /*!< Tamaño maximo de comando FTP */
-#define MAX_COMMAND_ARG MEDIUM_SZ /*!< Tamaño maximo de su argumento */
-#define MAX_COMMAND_RESPONSE XXL_SZ /*!< Tamaño maximo de resupuesta */
+#define MAX_COMMAND_ARG XL_SZ /*!< Tamaño maximo de su argumento */
+#define MAX_COMMAND_RESPONSE XL_SZ /*!< Tamaño maximo de resupuesta */
 #define FTP_CONTROL_PORT 21 /*!< Puerto FTP de control */
 #define FTP_DATA_PORT 20 /*!< Puerto FTP de datos (modo activo) */
 

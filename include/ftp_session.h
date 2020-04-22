@@ -44,6 +44,7 @@ typedef struct _session_info
     int secure; /*!< Indica si la sesion esta en modo seguro */
     int pbsz_sent; /*!< Indica que ya se ha enviado el comando pbsz */
     TLS *context; /*!< Contexto TLS de sesion */
+    char *current_pkey; /*!< Clave  */
     char current_dir[MAX_PATH]; /*!< Directorio actual del usuario de la sesion */
     int n_attributes; /*!< Cantidad de atributos actualmente en sesion */
     attribute attributes[MAX_ATTRIBUTES]; /*!< Atributos variables de la sesion */
