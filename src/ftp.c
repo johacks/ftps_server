@@ -19,20 +19,20 @@
  */
 typedef struct _keypair
 {
-    char *name;
-    int index;
+    char *name; /*!< Nombre del campo */
+    int index; /*!< Índice en un array */
 } keypair;
 
-#define C(x) #x,
+#define C(x) #x, /*!< Para cada comando, su nombre como string y una coma */
 
-char *imp_commands_names[] = { IMPLEMENTED_COMMANDS };
-keypair imp_commands_names_sorted[IMP_COMMANDS_TOP];
-char *ign_commands_names[] = { IGNORED_COMMANDS };
-keypair ign_commands_names_sorted[IGN_COMMANDS_TOP];
+char *imp_commands_names[] = { IMPLEMENTED_COMMANDS }; /*!< Array de strings con los nombres de los comandos implementados */
+keypair imp_commands_names_sorted[IMP_COMMANDS_TOP]; /*!< Array con los nombres de los comandos implementados y su número de enum */
+char *ign_commands_names[] = { IGNORED_COMMANDS }; /*!< Array de strings con los nombres de los comandos solamente conocidos */
+keypair ign_commands_names_sorted[IGN_COMMANDS_TOP]; /*!< Array con los nombres de los comandos solamente conocidos y su número de enum */
 
 #undef C
 
-int lists_setup = 0;
+static int lists_setup = 0; /*!< Indica si ya se han ordenado los arrays */
 
 /**
  * @brief Inserta un elemento en array

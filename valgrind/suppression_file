@@ -2,10 +2,7 @@
   leak-falso-hilos
   Memcheck:Leak
   fun:*calloc*
-  fun:*allocate_dtv*
-  fun:*_dl_allocate_tls*
-  fun:*allocate_stack*
+  ...
   fun:*pthread_create*
-  fun:*accept_loop*
-  fun:*main*
+  ...
 }

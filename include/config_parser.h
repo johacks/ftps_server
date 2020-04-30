@@ -1,5 +1,5 @@
 /**
- * @file parser.h
+ * @file config_parser.h
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
  * @brief Definicion de funciones útiles para el parseo del fichero server.conf y de requests
  * @version 1.0
@@ -32,6 +32,9 @@
 #define MAX_SESSIONS "max_sessions" /*!< Campo para maximo de sesions */
 #define MAX_SESSIONS_DEFAULT 100 /*!< Valor por defecto para el campo max_sessions */
 
+#define DAEMON_MODE "daemon_mode" /*!< Campo para modo demonio */
+#define DAEMON_MODE_DEFAULT 0 /*!< Valor por defecto para modo demonio */
+
 #define TYPE "default_type" /*!< Campo para tipo por defecto de transmision de datos */
 #define TYPE_DEFAULT "ascii" /*!< Valor por defecto para el campo */
 
@@ -43,6 +46,10 @@
 #define PRIVATE_KEY_PATH_DEFAULT "" /*!< Valor por defecto directorio base */
 #define PRIVATE_KEY_PATH_MAX XL_SZ + 1 /*!< Tamaño maximo de server path al fichero de clave privada */
 
+/**
+ * @brief Contiene información general del servidor, que incluye la parseada en server.conf
+ * 
+ */
 typedef struct _serverconf
 {
     char server_root[SERVER_ROOT_MAX]; /*!< Root del path donde se buscan los ficheros */
@@ -55,6 +62,7 @@ typedef struct _serverconf
     TLS *server_ctx; /*!< Contexto TLS general */
     char certificate_path[CERTIFICATE_PATH_MAX]; /*!< Path al certificado x.509 */
     char private_key_path[PRIVATE_KEY_PATH_MAX]; /*!< Path al fichero con clave privada  */
+    int daemon_mode; /*!< Indica si se ejecuta en modo demonio */
 } serverconf;
 
 /**

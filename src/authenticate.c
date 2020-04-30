@@ -11,6 +11,7 @@
 #define _GNU_SOURCE /*!< Para otras funciones */
 #include "utils.h"
 #include "sha256.h"
+#include "authenticate.h"
 
 #define SHA_SIZE 256 /*!< Tamaño de sha */
 #define SALT_SZ 87 /*!< Tamaño de sal formateado maximo */
@@ -18,10 +19,10 @@
 #define MAX_USER_SZ MEDIUM_SZ /*!< Tamaño de usuario*/
 #define SALT_END_CHAR '$' /*!< Delimitador de sal */
 
-char hashed_pass[SHA_SIZE];
-char salt[SALT_SZ];
-char server_user[MAX_USER_SZ] = "";
-int is_default_pass = 1;
+char hashed_pass[SHA_SIZE]; /*!< Hash de la contraseña. Si se abrió shadow, es un hash de un hash */
+char salt[SALT_SZ]; /*!< Salt de la contraseña */
+char server_user[MAX_USER_SZ] = ""; /*!< Nombre de usuario para acceso al servidor */
+int is_default_pass = 1; /*!< 1 si se utilizan credenciales del usuario que ejecuta el programa */
 
 /**
  * @brief Recoge una contraseña sin hacer echo por terminal
@@ -108,7 +109,7 @@ int set_credentials(char *user, char *pass)
 
     /* El usuario por defecto es el del que ejecuta el programa */
     if ( !user )
-        user = getpwuid(getuid())->pw_name;
+        user = get_username();
     strcpy(server_user, user);
 
     /* Version por defecto, coge la contraseña del shadow */
@@ -228,4 +229,19 @@ int drop_root_privileges()
         return 0;
 
     return 1;
+}
+
+char get_username_buff[MAX_USER_SZ]; /*!< Solo lectura, almacena el usuario que ejecuta el programa */
+
+/**
+ * @brief Nombre del usuario que ejecuta el programa
+ * 
+ * @return char* Solo lectura
+ */
+char *get_username()
+{
+    if ( !getlogin() )
+        errexit("No se ha podido detectar el nombre del usuario que ejecuta el programa, por favor configurelo en 'server.conf'\n");
+    strcpy(get_username_buff, getlogin());
+    return get_username_buff;
 }

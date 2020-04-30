@@ -222,8 +222,8 @@ sem_t *open_sem(char *name)
 
 /* LOGGING Y SALIDA ESTANDAR */
 
-int _use_syslog = 0; /* Usar o no systemlog para imprimir los mensajes */
-int _use_std = 1; /* Usar o no salida estandar para imprimir los mensajes */
+int _use_syslog = 0; /*!< Usar o no systemlog para imprimir los mensajes */
+int _use_std = 1; /*!< Usar o no salida estandar para imprimir los mensajes */
 
 /**
  * @brief Indica la configuracion a utilizar en el logueo de mensajes
@@ -262,7 +262,6 @@ void vflog(int priority, char *format, va_list param)
  * 
  * @param priority Prioridad en syslog si se va a usar syslog
  * @param format Cadena formateada
- * @param param Numero variable de argumentos
  */
 void flog(int priority, char *format, ...)
 {

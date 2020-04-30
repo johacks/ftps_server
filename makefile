@@ -34,7 +34,7 @@ INT_LIB_O=$(O)red.o $(O)authenticate.o $(O)utils.o $(O)config_parser.o $(O)ftp.o
 INT_LIB=$(L)lib_server.a
 
 # Uso de librerias
-LNK_LIB=-pthread -lcrypt -lrt -L./lib -Lconfuse
+LNK_LIB=-pthread -lcrypt -lrt -L./lib
 LIB=$(INT_LIB) $(LNK_LIB) $(EXT_LIB)
 
 ########################################################
@@ -107,7 +107,7 @@ $(B)ftps_server: $(S)ftps_server.c $(INT_LIB) $(EXT_LIB)
 directories:
 	mkdir -p $(DIRECTORIES)
 
-doc: Doxyfile
+doc: 
 	doxygen Doxyfile
 
 clean:

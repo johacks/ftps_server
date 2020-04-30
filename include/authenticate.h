@@ -1,10 +1,9 @@
 /**
  * @file authenticate.h
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
- * @brief 
+ * @brief Prototipos de funciones relacionadas con la autenticacion de usuarios 
  * @version 1.0
  * @date 17-03-2020
- * 
  * 
  */
 
@@ -51,5 +50,12 @@ int set_credentials(char *user, char *pass);
  * @return int 2 si no es root, 1 si exito, 0 si error
  */
 int drop_root_privileges();
+
+/**
+ * @brief Nombre del usuario que ejecuta el programa
+ * 
+ * @return char* Solo lectura
+ */
+char *get_username();
 
 #endif /* AUTHENTICATE_H */

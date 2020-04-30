@@ -51,7 +51,7 @@ C(PBSZ) /*!< Indica tamaño de buffer */                                    \
 C(PROT) /*!< Indica nivel de seguridad */                                  \
 C(FEAT) /*!< Caracteristicas adicionales del servidor */
 
-#define C(x) x,
+#define C(x) x, /*!< Para cada comando, nombre del comando seguido de una coma */
 /**
  * @brief Lista de comandos que implementa el servidor
  * 
@@ -64,12 +64,11 @@ typedef enum _imp_commands
 
 #define DATA_CALLBACK(cmd) (cmd == LIST || cmd == STOR || cmd == RETR) /*!< Indica si un comando hace uso de conexion de datos */
 
-#define IGNORED_COMMANDS /*!< Comandos FTP reconocidos pero ignorados */\
+#define IGNORED_COMMANDS \
 C(ACCT)C(ADAT)C(ALLO)C(APPE)C(AVBL)C(CCC)C(CONF)C(CSID)C(DSIZ)C(ENC)C(EPRT)C(EPSV)C(HOST)C(LANG)\
 C(LPRT)C(LPSV)C(MDTM)C(MFCT)C(MFF)C(MFMT)C(MIC)C(MLSD)C(MLST)C(NLST)C(OPTS)C(REIN)C(REST)\
-C(SITE)C(SMNT)C(SPSV)C(STAT)C(STOU)C(THMB)C(XCUP)C(XMKD)C(XPWD)C(XRCP)C(XRMD)C(XRSQ)C(XSEM)C(XSEN)
-
-#define C(x) x, 
+C(SITE)C(SMNT)C(SPSV)C(STAT)C(STOU)C(THMB)C(XCUP)C(XMKD)C(XPWD)C(XRCP)C(XRMD)C(XRSQ)C(XSEM)C(XSEN) /*!< Comandos FTP reconocidos pero ignorados */
+#define C(x) x, /*!< Para cada comando, nombre del comando seguido de una coma */
 
 /**
  * @brief Lista de comandos FTP conocidos pero no implementados
@@ -83,17 +82,17 @@ typedef enum _ign_commands
 #undef C
 
 /**
- * @brief Informacion asociada a una peticion y su respuesta en formato
+ * @brief Informacion asociada a una peticion y su respuesta
  * 
  */
 typedef struct _request_info
 {
-    imp_commands implemented_command;
-    ign_commands ignored_command;
-    char command_name[MAX_FTP_COMMAND_NAME + 4];
-    char command_arg[MAX_COMMAND_ARG + 1];
-    char response[MAX_COMMAND_RESPONSE];
-    int response_len;
+    imp_commands implemented_command; /*!< Indica el número del comando si es implementado */
+    ign_commands ignored_command; /*!< Indica el número del comando si es solamente conocido */
+    char command_name[MAX_FTP_COMMAND_NAME + 4]; /*!< Nombre del comando */
+    char command_arg[MAX_COMMAND_ARG + 1]; /*!< Argumento que venía con el comando */
+    char response[MAX_COMMAND_RESPONSE]; /*!< Respuesta que se enviará al comando */
+    int response_len; /*!< Tamaño de dicha respuesta */
 } request_info;
 
 /**
@@ -153,7 +152,7 @@ int set_command_response(request_info *ri, char *response, ...);
 #define CODE_150_LIST "150 Enviando listado de directorio\r\n" /*!< Despliega listado del directorio actual */
 
 #define CODE_200_OP_OK "200 Operacion correcta\r\n" /*!< Mensaje de exito */
-#define CODE_211_FEAT "211-Features adicionales:\n PASV\n SIZE\n AUTH TLS\n PROT\n PBSZ\n211 End\r\n" /*!< Funcionalidades de FEAT */
+#define CODE_211_FEAT "211-Features adicionales:\r\n PASV\r\n SIZE\r\n AUTH TLS\r\n PROT\r\n PBSZ\r\n211 End\r\n" /*!< Funcionalidades de FEAT */
 #define CODE_213_FILE_SIZE "213 Tamaño de archivo: %zd Bytes\r\n" /*!< Tamaño de archivo */
 #define CODE_214_HELP "214 Lista de comandos implementados: " /*!< lista de comandos implementados*/
 #define CODE_215_SYST "215 %s OS\r\n" /*!< Sistema operativo */
@@ -175,7 +174,7 @@ int set_command_response(request_info *ri, char *response, ...);
 #define CODE_421_BAD_TLS_NEG "421 Error en la negociacion TLS\r\n" /*!< Fallo en negociacion TLS */
 #define CODE_421_DATA_OPEN "421 Ya hay una conexion de datos activa\r\n" /*!< Tipicamente ante PORT o PASV */
 #define CODE_421_BUSY_DATA "421 Hay una transmision de datos en curso, llame a a ABORT o espere a que acabe\r\n" /*!< Transmision en curso */
-#define CODE_425_CANNOT_OPEN_DATA "425 No se ha podido abrir conexion de datos: %s\r\n" /* Fallo al abrir conexion de datos */
+#define CODE_425_CANNOT_OPEN_DATA "425 No se ha podido abrir conexion de datos: %s\r\n" /*!< Fallo al abrir conexion de datos */
 #define CODE_430_INVALID_AUTH "430 Usuario o password incorrectos\r\n" /*!< Error de autenticacion */
 #define CODE_431_INVALID_SEC "431 %s no aceptado, use TLS\r\n" /*!< Error de mecanismo propuesto */
 #define CODE_451_DATA_CONN_LOST "451 Error en la transmision de datos\r\n" /*!< Error de transmision de datos */

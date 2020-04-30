@@ -7,8 +7,8 @@
  * 
  * 
  */
-#define _DEFAULT_SOURCE
-#define _POSIX_C_SOURCE 200112L
+#define _DEFAULT_SOURCE /*!< Acceso a funciones de GNU */
+#define _POSIX_C_SOURCE 200112L /*!< Acceso a funciones de POSIX */
 #include "utils.h"
 #include "red.h"
 #include "ftp.h"
@@ -24,7 +24,6 @@
 #define CONTROL_SOCKET_TIMEOUT 150 /*!< Timeout maximo de conexion de control */
 // #define DEBUG
 
-void free_resources(int socket_control_fd, int socket_data_fd);
 void accept_loop(int socket_control_fd);
 void set_ftp_credentials();
 void *ftp_session_loop(void *args);
@@ -33,11 +32,17 @@ void set_handlers();
 void data_callback_loop(session_info *session, request_info *ri, serverconf * server_conf,char *buf);
 void tls_start();
 
-int modo_daemon = 0; /* TODO: Añadir al fichero de configuracion */
-serverconf server_conf;
-sem_t n_clients;
+serverconf server_conf; /*!< Configuracion global del servidor */
+sem_t n_clients; /*!< Controla que no se exceda el número de sesiones FTP */
 int end = 0; /*!< Indica que hay que finalizar el programa */
 
+/**
+ * @brief Punto de entrada a la aplicación
+ * 
+ * @param argc Número de argumentos
+ * @param argv Se utiliza el argumento especial USING_AUTHBIND para indicar que la ejecución se realiza con authbind
+ * @return int exito si 0 
+ */
 int main(int argc, char *argv[])
 {
     /* Comprobacion un poco burda de que la ejecucion debe ser con authbind */
@@ -69,10 +74,12 @@ int main(int argc, char *argv[])
     tls_start();
 
     /* Establecer configuracion de logueo */
-    set_log_conf(1, 0, NULL);
+    set_log_conf(!server_conf.daemon_mode, server_conf.daemon_mode, "Servidor FTPS");
+
+    printf("Configuracion terminada, servidor desplegado\n");
 
     /* Entrar en modo demonio si se ha indicado */
-    if ( modo_daemon ) daemon(1, 0);
+    if ( server_conf.daemon_mode ) daemon(1, 0);
 
     /* Loop de aceptacion de peticiones en control */
     accept_loop(socket_control_fd);
@@ -156,7 +163,7 @@ void *ftp_session_loop(void *args)
         buff[read_b] = '\0'; /* Por motivos de seguridad aseguramos un cero */
         parse_ftp_command(&ri, buff);
         #ifdef DEBUG
-        printf("%s %s\n", ri.command_name, ri.command_arg);
+        flog(LOG_DEBUG, "%s %s\n", ri.command_name, (!strcmp(ri.command_name, "PASS")) ? "XXXX" : ri.command_arg);
         #endif
         if ( ri.ignored_command == -1 && ri.implemented_command == -1 ) /* Comando no reconocido */
             ssend(current->context, clt_fd, CODE_500_UNKNOWN_CMD, sizeof(CODE_500_UNKNOWN_CMD) - 1, MSG_NOSIGNAL);
@@ -170,10 +177,12 @@ void *ftp_session_loop(void *args)
                 data_callback_loop(current, &ri, &server_conf, buff);
             /* Enviar respuesta final del callbacj */
             if ( cb_ret == CALLBACK_RET_PROCEED  || ri.implemented_command == QUIT)
+            {
                 ssend(current->context, clt_fd, ri.response, ri.response_len, ((cb_ret != CALLBACK_RET_PROCEED) & MSG_DONTWAIT) | MSG_NOSIGNAL);
-            #ifdef DEBUG
-            printf("-->%s\n", ri.response);
-            #endif
+                #ifdef DEBUG
+                flog(LOG_DEBUG, "-->%s\n", ri.response);
+                #endif
+            }
             aux = previous;
             previous = current;
             current = aux; /* Sesion actual pasa a ser la sesion previa */
@@ -248,7 +257,8 @@ void set_ftp_credentials()
     /* Decidir metodo de autenticacion del servidor */
     if ( server_conf.ftp_user[0] == '\0' )
     {
-        printf("Usuario no especificado en server.conf, se usaran las credenciales del usuario %s\n", getpwuid(getuid())->pw_name);
+        char *uname = get_username();
+        printf("Usuario no especificado en server.conf, se usaran las credenciales del usuario %s\n", uname);
         /* Si no se proporciona usuario, usar credenciales de usuario que ejecuta el programa */
         if ( !set_credentials(NULL, NULL) ) 
             errexit("Fallo al establecer credenciales de usuario que ejecuta el programa. Comprobar permisos de root\n");

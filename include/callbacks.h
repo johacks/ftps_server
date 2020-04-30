@@ -31,7 +31,7 @@
 typedef CALLBACK_RET (*callback)(CALLBACK_ARGUMENTS);
 
 /* Generacion automatica de un callback para cada comando implementado segun el enum */
-#define C(x) CALLBACK_RET x ## _cb (CALLBACK_ARGUMENTS);
+#define C(x) CALLBACK_RET x ## _cb (CALLBACK_ARGUMENTS); /*!< Para cada comando de la enumeracion, generar prototipo */
 IMPLEMENTED_COMMANDS
 #undef C
 

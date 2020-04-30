@@ -1,5 +1,5 @@
 /**
- * @file path.c
+ * @file ftp_files.c
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
  * @brief Manipulacion de paths, ficheros y directorios
  * @version 1.0
@@ -9,7 +9,7 @@
  * 
  */
 
-#define _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE /*!< Acceso a funciones de GNU */
 #include "utils.h"
 #include "red.h"
 #include "ftp.h"

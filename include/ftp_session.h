@@ -1,7 +1,7 @@
 /**
  * @file ftp_session.h
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
- * @brief Contiene la estructura ftp_session y operaciones asociadas a esta
+ * @brief Contiene la estructura ftp_session y operaciones asociadas a esta. Mantiene información de la sesión ftp
  * @version 1.0
  * @date 13-04-2020
  * 
@@ -14,9 +14,9 @@
 
 #include "utils.h"
 #include "ftp_files.h"
-#define MAX_PATH MEDIUM_SZ + 1
-#define MAX_ATTRIBUTES SMALL_SZ
-#define MAX_ATTRIBUTE_NAME SMALL_SZ
+#define MAX_PATH XL_SZ + 1 /*!< Tamaño máximo del path actual */
+#define MAX_ATTRIBUTES SMALL_SZ /*!< Número máximo de atributos dinámicos de la sesión */
+#define MAX_ATTRIBUTE_NAME SMALL_SZ /*!< Tamaño máximo del nombre de un atributo dinámico */
 #define POWER_OF_TWO(x) (((uintptr_t) 1) << (x)) /*!< Elevar al cuadrado */
 #define ATTR_NOT_FOUND POWER_OF_TWO(8*sizeof(uintptr_t)-1)*-1 /*!< Valor minimo de uintptr_t */ 
 

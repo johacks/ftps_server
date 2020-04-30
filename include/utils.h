@@ -163,7 +163,6 @@ void vflog(int priority, char *format, va_list param);
  * 
  * @param priority Prioridad en syslog si se va a usar syslog
  * @param format Cadena formateada
- * @param param Numero variable de argumentos
  */
 void flog(int priority, char *format, ...);
 

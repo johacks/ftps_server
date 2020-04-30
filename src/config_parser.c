@@ -1,17 +1,17 @@
 /**
  * @file config_parser.c
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
- * @brief 
+ * @brief Implementación de funciones de parseo de módulos
  * @version 1.0
  * @date 07-04-2020
  * 
  */
 
 #define _DEFAULT_SOURCE
-#include <confuse.h>
 #include "red.h"
 #include "utils.h"
 #include "config_parser.h"
+#include "confuse.h"
 
 int get_server_root(serverconf *server_conf, cfg_t *cfg);
 int get_ftp_user(serverconf *server_conf, cfg_t *cfg);
@@ -20,6 +20,7 @@ int get_ftp_host(serverconf *server_conf, cfg_t *cfg);
 int get_max_sessions(serverconf *server_conf, cfg_t *cfg);
 int get_type(serverconf *server_conf, cfg_t *cfg);
 int get_certificate_path(serverconf *server_conf, cfg_t *cfg);
+int get_daemon_mode(serverconf *server_conf, cfg_t *cfg);
 int get_private_key_path(serverconf *server_conf, cfg_t *cfg);
 
 /**
@@ -38,6 +39,7 @@ int parse_server_conf(serverconf *server_conf)
         CFG_STR(SERVER_ROOT, SERVER_ROOT_DEFAULT, CFGF_NONE),	
         CFG_INT(MAX_PASSIVE_PORTS, MAX_PASSIVE_PORTS_DEFAULT, CFGF_NONE),
         CFG_INT(MAX_SESSIONS, MAX_SESSIONS_DEFAULT, CFGF_NONE),
+        CFG_INT(DAEMON_MODE, DAEMON_MODE_DEFAULT, CFGF_NONE),
         CFG_STR(TYPE, TYPE_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_USER, FTP_USER_DEFAULT, CFGF_NONE),
         CFG_STR(FTP_HOST, FTP_HOST_DEFAULT, CFGF_NONE),
@@ -60,6 +62,7 @@ int parse_server_conf(serverconf *server_conf)
                           || get_type(server_conf, cfg) < 0
                           || get_private_key_path(server_conf, cfg) < 0
                           || get_certificate_path(server_conf, cfg) < 0
+                          || get_daemon_mode(server_conf, cfg) < 0
                           || get_max_sessions(server_conf, cfg) < 0);
     cfg_free(cfg);
     return res;
@@ -207,6 +210,19 @@ int get_max_passive_ports(serverconf *server_conf, cfg_t *cfg)
         server_conf->max_passive_ports = MAX_PASSIVE_PORTS_DEFAULT;
     /* Semaforo de puertos abiertos */
     sem_init(&(server_conf->free_passive_ports), 0, server_conf->max_passive_ports);
+    return 1;
+}
+
+/**
+ * @brief Recoge y limpia modo demonio
+ * 
+ * @param server_conf Estructura de configuracion
+ * @param cfg Resultados del parseo
+ * @return int menor que 0 si error
+ */
+int get_daemon_mode(serverconf *server_conf, cfg_t *cfg)
+{
+    server_conf->daemon_mode = cfg_getint(cfg, DAEMON_MODE);
     return 1;
 }
 

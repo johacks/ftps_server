@@ -3,6 +3,10 @@ src/tests.c
 .vscode/
 vglogs/
 lib/lib_server.a
+lib/libtls.a
+lib/sha256.a
+obj/
 bin/ftps_server
 tlshelloworld.c
 certificates/
+doc/

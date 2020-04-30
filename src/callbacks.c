@@ -31,7 +31,7 @@ static const callback callbacks[IMP_COMMANDS_TOP] = { IMPLEMENTED_COMMANDS };
         set_command_response(c, CODE_530_NO_LOGIN);                                     \
         return CALLBACK_RET_PROCEED;                                                    \
     }                                                                                   \
-}
+} /*!< Comprueba en un callback que el usuario está logueado */
 
 #define RESOLVE_PATH(s, c, buf, new)                                                    \
 {                                                                                       \
@@ -40,7 +40,7 @@ static const callback callbacks[IMP_COMMANDS_TOP] = { IMPLEMENTED_COMMANDS };
         set_command_response(c, CODE_550_NO_ACCESS);                                    \
         return CALLBACK_RET_PROCEED;                                                    \
     }                                                                                   \
-}
+} /*!< Comprueba en un callback que el path pasado como argumento es correcto y lo almacena en buf */
 
 /**
  * @brief Llama al callback correspondiente a un comando
@@ -62,13 +62,12 @@ uintptr_t command_callback(serverconf *server_conf, session_info *session, reque
  */
 typedef struct _data_thread_args
 {
-    pthread_t thread;
-    serverconf *server_conf;
-    session_info *session;
-    request_info *command;
+    pthread_t thread; /*!< Thread utilizado para la conexion de datos */
+    serverconf *server_conf; /*!< Configuracion del servidor */
+    session_info *session; /*!< Sesion FTP */
+    request_info *command; /*!< Comando que genera callback */
 } data_thread_args;
 
-/* Macro que hace de middleware entre el callback de un comando de datos y el thread de comando de datos */
 #define DATA_cb(COMMAND) CALLBACK_RET COMMAND ## _cb (CALLBACK_ARGUMENTS)               \
 {                                                                                       \
     data_thread_args *args = malloc(sizeof(data_thread_args));                          \
@@ -84,7 +83,7 @@ typedef struct _data_thread_args
     }                                                                                   \
     pthread_detach(args->thread);                                                       \
     return CALLBACK_RET_PROCEED;                                                        \
-}     
+} /*!< Hace de middleware entre el callback de un comando de datos y el thread de comando de datos */
 
 /* Sincronizacion entre dos hilos para avanzar a la vez tras un evento */
 #define RENDEZVOUS(mut1, mut2)                                                          \
@@ -92,7 +91,7 @@ typedef struct _data_thread_args
     sem_post(&(mut1));                                                                  \
     sem_wait(&(mut2));                                                                  \
     sem_post(&(mut1));                                                                  \
-}                                                                                       \
+} /*!< Dos procesos se sincronizan utilizando dos mutex */
 
 /* Libera los recursos iniciales de un thread tras un fin prematuro */
 #define THREAD_PREMATURE_EXIT(t)                                                        \
@@ -102,7 +101,7 @@ typedef struct _data_thread_args
     sem_post(&(t->session->data_connection->data_conn_sem));                            \
     free(t);                                                                            \
     return NULL;                                                                        \
-}
+} /*!< Sale de la ejecución de un thread al principio de este, liberando recursos */
 
 /**
  * @brief Crea una conexion segura en el modo correspondiente a pasivo o activo
@@ -146,7 +145,7 @@ correspondientes y saliendo del thread si no es el caso */
 {                                                                                       \
     if ( make_data_conn(t->server_conf, t->session, t->command) < 0 )                   \
         THREAD_PREMATURE_EXIT(t)                                                        \
-}                                                                                       
+} /*!< Comprueba que se puede establecer una conexión correctamente de datos y sale si no es asi */                                                                                 
 
 /**
  * @brief Envia un fichero
@@ -269,9 +268,20 @@ void *STOR_cb_thread(void *args)
 }
 
 /* Genera los callbacks de funciones que necesitan thread de datos */
+/**
+ * @brief Construir función de middleware entre el callback de RETR y un hilo para atenderlo
+ */
 DATA_cb(RETR)
+
+/**
+ * @brief Construir función de middleware entre el callback de LIST y un hilo para atenderlo
+ */
 DATA_cb(LIST)
-DATA_cb(STOR)
+
+/**
+ * @brief Construir función de middleware entre el callback de STOR y un hilo para atenderlo
+ */
+DATA_cb(STOR) /*!< Funcion que crea un thread para atender a STOR */
 
 /* CALLBACKS DE CONTROL */
 
@@ -582,7 +592,12 @@ uintptr_t RNFR_cb(serverconf *server_conf, session_info *session, request_info *
     if ( !path )
         return CALLBACK_RET_END_CONNECTION;
     CHECK_USERNAME(session, command)
-    RESOLVE_PATH(session, command, path, 0)
+    if ( get_real_path(session->current_dir, command->command_arg, path) < 1 )
+    {
+        free(path);
+        set_command_response(command, CODE_550_NO_ACCESS);
+        return CALLBACK_RET_PROCEED;
+    }
     set_attribute(session, RENAME_FROM_ATTR, (uintptr_t) path, 1, 1); /* Atributo de sesion: archivo a renombrar */
     set_command_response(command, CODE_350_RNTO_NEEDED);
     return CALLBACK_RET_PROCEED;
@@ -654,7 +669,7 @@ uintptr_t SYST_cb(serverconf *server_conf, session_info *session, request_info *
  */
 uintptr_t FEAT_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
-    set_command_response(command, CODE_211_FEAT, operating_system());
+    set_command_response(command, CODE_211_FEAT);
     return CALLBACK_RET_PROCEED;
 }
 
@@ -857,6 +872,13 @@ uintptr_t PBSZ_cb(serverconf *server_conf, session_info *session, request_info *
 
 /*.......*/
 
-/* Debe existir este callback por motivos de compilacion */
+/**
+ * @brief Debe existir este callback por motivos de compilacion
+ * 
+ * @param server_conf configuracion del servidor
+ * @param session sesion FTP
+ * @param command comando ABOR
+ * @return uintptr_t 
+ */
 uintptr_t ABOR_cb(serverconf *server_conf, session_info *session, request_info *command)
 { return CALLBACK_RET_PROCEED; }
