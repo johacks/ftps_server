@@ -226,7 +226,7 @@ Adjunto a este proyecto se encuentra un instalador, _install.sh_ que realiza las
 
 En el proyecto se encuentra un fichero de _Makefile_ que permite ejecutar las siguientes funcionalidades: 
 
-	~$ make 			    # Genera todos los ejecutables
+	~$ make 				# Genera todos los ejecutables
 	~$ make clean			# Elimina todos los ejcutables, librerías generables dinámicamente y documentación
 	~$ make clear			# Igual que clean pero no borra ejecutables
 	~$ make doc 			# Genera la documentación en formato doxygen en el doc a partir del fichero Doxyfile proporcionado

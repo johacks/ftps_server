@@ -12,6 +12,30 @@ if [ -z $authbind_path ]; then
     done
 fi
 
+# Instalar gcc
+gcc_path=$(command -v gcc)
+if [ -z $gcc_path ]; then
+    echo "La compilación de este programa requiere que gcc este instalado, quieres instalarlo? Escribe 1 o 2:"
+    select respuesta in "Si" "No"; do
+        case $respuesta in
+            Si ) sudo apt-get install gcc; break;;
+            No ) exit;;
+        esac
+    done
+fi
+
+# Instalar make
+make_path=$(command -v make)
+if [ -z $make_path ]; then
+    echo "La compilación de este programa requiere que make este instalado, quieres instalarlo? Escribe 1 o 2:"
+    select respuesta in "Si" "No"; do
+        case $respuesta in
+            Si ) sudo apt-get install make; break;;
+            No ) exit;;
+        esac
+    done
+fi
+
 # Instalación de doxygen
 doxygen_path=$(command -v doxygen)
 xdot_path=$(command -v xdot)
@@ -52,7 +76,7 @@ echo "Ahora el usuario '${USER}' podra correr el servidor FTP correctamente"
 # Compilar programa
 echo "Compilando el binario..."
 make
-echo "Se ha terminado la compilación, el binario se encuentra en /bin, debera ejecutarlo como '${USER}'"
+echo "Se ha terminado la compilación, el binario se encuentra en bin/ftps_server, debera ejecutarlo como '${USER}'"
 
 # Generar certificados del servidor
 echo "El servidor necesita un certificado X.509 y su clave privada correspondiente .pem, que no puede llevar contraseña, quieres crearlos ahora?
@@ -86,8 +110,7 @@ fi
 # Instalación de un cliente compatible 
 lftp_path=$(command -v lftp)
 if [ -z $lftp_path ]; then
-    echo "Debido a las altas restricciones de autenticación en la conexión de datos de este servidor, se recomienda usar 
-          el cliente lftp, que permite cifrar conexión de datos además de en la conexión de control, quieres instalarlo? Escribe 1 o 2:"
+    echo "Debido a las altas restricciones de autenticación en la conexión de datos de este servidor, se recomienda usar el cliente lftp, que permite cifrar conexión de datos además de en la conexión de control, quieres instalarlo? Escribe 1 o 2:"
     select respuesta in "Si" "No"; do
         case $respuesta in
             Si ) sudo apt-get install lftp; break;;
@@ -133,7 +156,41 @@ p_key_path="${certificate_path}/private_key.pem"
 cert_path="${certificate_path}/certificate.pem"
 
 # Terminar de configurar el cliente
-client_config="\nset ftp:ssl-allow on\nset ftp:ssl-auth \"TLS\"\nset ftp:ssl-data-use-keys on\nset ftp:ssl-force on\nset ftp:ssl-protect-data on\nset ftp:ssl-use-ccc on\nset ftp:use-size on\nset ftp:use-stat off\nset ftp:initial-prot \"P\"\nset ssl:check-hostname off\nset ssl:key-file ${p_key_path}\nset ssl:cert-file ${cert_path}\nset ssl:ca-file ${ca_path}\n"
+client_config="\nset ftp:ssl-allow on"
+client_config="${client_config}\nset ftp:ssl-force on"
+client_config="${client_config}\nset ftp:ssl-auth \"TLS\""
+client_config="${client_config}\nset ftp:ssl-data-use-keys on"
+client_config="${client_config}\nset ftp:ssl-protect-data on"
+client_config="${client_config}\nset ftp:ssl-protect-list on"
+client_config="${client_config}\nset ftp:ssl-use-ccc off"
+
+client_config="${client_config}\nset ssl:check-hostname off"
+client_config="${client_config}\nset ssl:key-file ${p_key_path}"
+client_config="${client_config}\nset ssl:cert-file ${cert_path}"
+client_config="${client_config}\nset ssl:ca-file ${ca_path}"
+
+client_config="${client_config}\nset ftp:use-size on"
+client_config="${client_config}\nset ftp:sync-mode on"
+client_config="${client_config}\nset ftp:trust-feat on"
+client_config="${client_config}\nset ftp:use-feat on"
+client_config="${client_config}\nset ftp:use-mlsd off"
+client_config="${client_config}\nset ftp:use-mode-z off"
+client_config="${client_config}\nset ftp:use-site-utime off"
+client_config="${client_config}\nset ftp:use-site-utime2 off"
+client_config="${client_config}\nset ftp:use-abor on"
+client_config="${client_config}\nset ftp:use-allo off"
+client_config="${client_config}\nset ftp:use-mdtm off"
+client_config="${client_config}\nset ftp:use-stat off"
+client_config="${client_config}\nset ftp:use-stat-for-list off"
+client_config="${client_config}\nset ftp:use-utf8 off"
+client_config="${client_config}\nset ftp:catch-size off"
+client_config="${client_config}\nset ftp:client \"\""
+client_config="${client_config}\nset ftp:list-empty-ok on"
+client_config="${client_config}\nset ftp:rest-list off"
+client_config="${client_config}\nset ftp:rest-stor off"
+client_config="${client_config}\nftps:initial-prot \"P\""
+client_config="${client_config}\n"
+
 
 echo "Se usará la siguiente configuración del cliente, puede modificarla en /etc/lftp.conf:"
 echo -e $client_config | sudo tee -a /etc/lftp.conf

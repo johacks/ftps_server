@@ -15,7 +15,7 @@
 #include "utils.h"
 #include "red.h"
 #include "tlse.h"
-#define DATA_SOCKET_TIMEOUT 5 /*!< Maximo de segundos de timeout en conexion de datos */
+#define DATA_SOCKET_TIMEOUT 60 /*!< Maximo de segundos de timeout en conexion de datos */
 
 /**
  * @brief Define los posibles estados de una conexion FTP de datos

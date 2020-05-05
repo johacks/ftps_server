@@ -16,6 +16,7 @@
 #include "config_parser.h"
 #include "ftp_files.h"
 #define SEND_BUFFER XXXL_SZ /*!< Tamaño de buffer de envio */
+#define RECV_BUFFER 1024 * 1024 /*!< Tamaño de buffer de recepcion */
 #define IP_LEN sizeof("xxx.xxx.xxx.xxx") /*!< Tamaño de ipv4 */
 #define LS_CMD "ls -l1 --numeric-uid-gid --hyperlink=never --time-style=iso --color=never '" /*!< Comando ls */
 #define IP_FIELD_LEN sizeof("xxx") /*!< Tamaño de un subcampo de ipv4 */
@@ -300,11 +301,11 @@ ssize_t read_to_file(struct TLSContext *ctx, FILE *f, int socket_fd, int ascii_m
 {
     int aux = 0;
     ssize_t sent_b, read_b, total = 0;
-    char buf[SEND_BUFFER];
+    char buf[RECV_BUFFER];
     if ( !abort_transfer ) abort_transfer = &aux;
 
     /* Lee de buffer en buffer hasta terminar o ser interrumpido */
-    while ( !(*abort_transfer) && ((read_b = read_to_buffer(ctx, socket_fd, buf, SEND_BUFFER, ascii_mode)) > 0) )
+    while ( !(*abort_transfer) && ((read_b = read_to_buffer(ctx, socket_fd, buf, RECV_BUFFER, ascii_mode)) > 0) )
     {
         if ( (sent_b = fwrite(buf, sizeof(char), read_b, f)) != read_b )
             return -1;
