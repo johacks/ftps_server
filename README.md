@@ -2,7 +2,7 @@
 
 Joaquín Jiménez López de Castro. Redes 2. Grupo 2312. joaquin.jimenezl@estudiante.uam.es
 
-Versión extendida del README.md: WIKI.md (adjunto)
+Versión extendida del README.md: WIKI.md (adjunto). También en https://git.eps.uam.es/joaquin.jimenezl/ftps_server/-/wikis/Memoria-Trabajo-Tutelado y en la página principal si generado por doxygen.
 
 ## Instrucciones de Uso del Servidor
 
