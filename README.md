@@ -69,6 +69,7 @@ Ya instalado y configurado el cliente y lanzado el servidor, un posible ejemplo 
 	$ lftp johacks@localhost // Se conectará al servidor desplegado en localhost con nombre de usuario johacks
 	Clave: 
 	lftp johacks@localhost:~> debug                            
+	lftp johacks@localhost:~> source /etc/lftp.conf // Asegurarse de que se utiliza el fichero de configuración
 	lftp johacks@localhost:~> ls
 	---- Conectándose a localhost (127.0.0.1) port 21
 	<--- 220 Bienvenido a mi servidor FTP

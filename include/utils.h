@@ -45,7 +45,7 @@
 #define MEDIUM_SZ 256   /*!< Tamaño mediano */
 #define XL_SZ 1024      /*!< Tamaño grande */
 #define XXL_SZ 4096     /*!< Tamaño enorme */
-#define XXXL_SZ 8192    /*!< Tamaño gigante */
+#define XXXL_SZ 65536    /*!< Tamaño gigante */
 
 #define MUTEX_DO(mutex, atomic_op) { sem_wait(&(mutex)); atomic_op sem_post(&(mutex)); } /*!< Protege una operacion atomica con mutex */
 

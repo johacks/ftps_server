@@ -188,7 +188,7 @@ client_config="${client_config}\nset ftp:client \"\""
 client_config="${client_config}\nset ftp:list-empty-ok on"
 client_config="${client_config}\nset ftp:rest-list off"
 client_config="${client_config}\nset ftp:rest-stor off"
-client_config="${client_config}\nftps:initial-prot \"P\""
+client_config="${client_config}\nset ftps:initial-prot \"P\""
 client_config="${client_config}\n"
 
 

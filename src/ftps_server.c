@@ -158,7 +158,7 @@ void *ftp_session_loop(void *args)
     while( !end && cb_ret != CALLBACK_RET_END_CONNECTION )
     {
         /* Recoger siguiente comando comprobando de vez en cuando el flag */
-        while ( !end && (((read_b = srecv(current->context,clt_fd, buff, XL_SZ, MSG_DONTWAIT | MSG_NOSIGNAL)) < 0) && (errno == EWOULDBLOCK || errno == EAGAIN)) && !usleep(1000) );
+        while ( !end && (((read_b = srecv(current->context,clt_fd, buff, XXXL_SZ, MSG_DONTWAIT | MSG_NOSIGNAL)) < 0) && (errno == EWOULDBLOCK || errno == EAGAIN)) && !usleep(1000) );
         if ( end || read_b <= 0) break;
         buff[read_b] = '\0'; /* Por motivos de seguridad aseguramos un cero */
         parse_ftp_command(&ri, buff);
@@ -222,7 +222,7 @@ void data_callback_loop(session_info *session, request_info *ri, serverconf * se
     while ( sem_trywait(&(session->data_connection->data_conn_sem)) == -1 )
     {
         /* Comprobar si ha llegado una peticion nueva */
-        ssize_t len = srecv(session->context, session->clt_fd, buf, XL_SZ + 1, MSG_DONTWAIT | MSG_NOSIGNAL);
+        ssize_t len = srecv(session->context, session->clt_fd, buf, XXXL_SZ + 1, MSG_DONTWAIT | MSG_NOSIGNAL);
         if ( len != -1 )
         {
             /* Si es ABORT, activamos flag de abort (atomico) */

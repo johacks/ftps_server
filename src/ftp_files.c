@@ -15,7 +15,7 @@
 #include "ftp.h"
 #include "config_parser.h"
 #include "ftp_files.h"
-#define SEND_BUFFER XXXL_SZ /*!< Tamaño de buffer de envio */
+#define SEND_BUFFER 1024 * 1024 /*!< Tamaño de buffer de envio */
 #define RECV_BUFFER 1024 * 1024 /*!< Tamaño de buffer de recepcion */
 #define IP_LEN sizeof("xxx.xxx.xxx.xxx") /*!< Tamaño de ipv4 */
 #define LS_CMD "ls -l1 --numeric-uid-gid --hyperlink=never --time-style=iso --color=never '" /*!< Comando ls */
