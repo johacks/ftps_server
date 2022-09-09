@@ -1,11 +1,11 @@
 /**
  * @file utils.h
- * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
- * @brief Diversas macros y funciones miscelaneas
+ * @author Joaquin Jimenez Lopez Castro (joaquin.jimenezl@student.uam.es)
+ * @brief Miscellaneous macros and functions
  * @version 1.0
- * @date 17-03-2020
- * 
- * 
+ * @date 17-03-2
+ *
+ *
  */
 
 #ifndef UTILS_H
@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include <sys/param.h>
 #include <semaphore.h>
 #include <syslog.h>
@@ -39,139 +39,140 @@
 #include <grp.h>
 #include <termios.h>
 
-/* Tamaños */
-#define TINY_SZ 8       /*!< Tamaño enano */
-#define SMALL_SZ 64     /*!< Tamaño pequeño */
-#define MEDIUM_SZ 256   /*!< Tamaño mediano */
-#define XL_SZ 1024      /*!< Tamaño grande */
-#define XXL_SZ 4096     /*!< Tamaño enorme */
-#define XXXL_SZ 65536    /*!< Tamaño gigante */
+/*sizes*/
+#define TINY_SZ 8     /*!< dwarf size*/
+#define SMALL_SZ 64   /*!< small size*/
+#define MEDIUM_SZ 256 /*!< medium size*/
+#define XL_SZ 1024    /*!< large size*/
+#define XXL_SZ 4096   /*!< huge size*/
+#define XXXL_SZ 65536 /*!< giant size*/
 
-#define MUTEX_DO(mutex, atomic_op) { sem_wait(&(mutex)); atomic_op sem_post(&(mutex)); } /*!< Protege una operacion atomica con mutex */
-
+#define MUTEX_DO(mutex, atomic_op)    \
+    {                                 \
+        sem_wait(&(mutex));           \
+        atomic_op sem_post(&(mutex)); \
+    } /*!< Protects an atomic operation with mutex*/
 /**
- * @brief Tamaño de un fichero dado su descriptor
- * 
- * @param fd descriptor del fichero
- * @return size_t tamaño
+ * @brief Size of a file given its descriptor
+ *
+ * @param fd file descriptor
+ * @return size_t size
  */
 size_t file_size(int fd);
 
 /**
- * @brief Indica el sistema operativo en uso
- * 
- * @return char* 
+ * @brief Indicates the operating system in use
+ *
+ * @return char*
  */
 char *operating_system();
 
 /**
- * @brief Tamaño de un fichero dado su nombre
- * 
- * @param path Nombre del fichero
- * @return size_t tamaño
+ * @brief Size of a file given its name
+ *
+ * @param path Name of the file
+ * @return size_t size
  */
 size_t name_file_size(char *path);
 
 /**
- * @brief Str es un numero entero
- * 
+ * @brief Str is an integer
+ *
  * @param str String
- * @param len Tamaño a parsear, si se quiere llamar a strlen, poner menor que 0
- * @return int 
+ * @param len Size to parse, if you want to call strlen, put less than 0
+ * @return int
  */
 int is_number(char *str, int len);
 
-/* SEMAFOROS Y MEMORIA COMPARTIDA */
-
+/*SEMAPHORES AND SHARED MEMORY*/
 /**
- * @brief Cierra un conjunto de semaforos
- * 
- * @param n_sem Numero de semaforos a cerrar
- * @param ... Sucesion de semaforos y sus respectivos nombres. Poner NULL en cualquiera de ellos si se quiere evitar close/unlink
- * @return int 
+ * @brief Closes a set of semaphores
+ *
+ * @param n_sem Number of semaphores to close
+ * @param ... Sequence of semaphores and their respective names. Put NULL in any of them if you want to avoid close/unlink
+ * @return int
  */
 int close_semaphores(int n_sem, ...);
 
 /**
- * @brief Cierra un conjunto de semaforos
- * 
- * @param n_shm Numero de fichero de memoria compartida a cerrar
- * @param ... Sucesion de tripletos estructura, tamaño de estructura y nombre
- * @return int 
+ * @brief Closes a set of semaphores
+ *
+ * @param n_shm Shared memory file number to close
+ * @param ... Sequence of structure triplets, structure size and name
+ * @return int
  */
 int close_shm(int n_shm, ...);
 
 /**
- * @brief Crea un fichero shm y mapea en el buffer mapped
- * 
- * @param name Nombre del ficherp
- * @param size Tamaño del mapeo
- * @param mapped Buffer donde colocar la estructura
- * @return int descriptor de fichero del mapeo
+ * @brief Create a shm file and map into the mapped buffer
+ *
+ * @param name Name of the file
+ * @param size Size of the mapping
+ * @param mapped Buffer where to place the structure
+ * @return int mapping file descriptor
  */
 int create_shm(char *name, size_t size, void **mapped);
 
 /**
- * @brief Crea un semaforo
- * 
- * @param name Nombre del semaforo
- * @param initial_val Valor inicial del semaforo
- * @return sem_t* (NULL si fallo)
+ * @brief Create a semaphore
+ *
+ * @param name Number of the semaphore
+ * @param initial_val Inicial value of the semaphore
+ * @return sem_t *(NULL if you fail)
  */
 sem_t *create_sem(char *name, int initial_val);
 
 /**
- * @brief Abre un fichero de memoria compartida
- * 
- * @param name Nombre del fichero
- * @param size Tamaño del fichero
+ * @brief Opens a shared memory file
+ *
+ * @param name Name of the file
+ * @param size File size
  * @param mapped Buffer
- * @return int 
+ * @return int
  */
 int open_shm(char *name, size_t size, void **mapped);
 
 /**
- * @brief Abre un semaforo
- * 
- * @param name Nombre del semaforo
- * @return sem_t* (NULL si fallo)
+ * @brief Abre a semaphore
+ *
+ * @param name Number of the semaphore
+ * @return sem_t *(NULL if you fail)
  */
 sem_t *open_sem(char *name);
 
-/* LOGGING Y SALIDA ESTANDAR */
-
+/*LOGGING AND STANDARD OUTPUT*/
 /**
- * @brief Indica la configuracion a utilizar en el logueo de mensajes
- * 
- * @param use_std Los mensajes se imprimen en salida estandar
- * @param use_syslog Los mensajes se imprimen en el log del sistema 
- * @param syslog_ident Especificar identificador en el log del sistema
+ * @brief Indicates the configuration to use in message logging
+ *
+ * @param use_std Messages are printed to standard output
+ * @param use_syslog Messages are printed to the system log
+ * @param syslog_ident Specify identifier in the system log
  */
 void set_log_conf(int use_std, int use_syslog, char *syslog_ident);
 
 /**
- * @brief Loguea usando los argumentos
- * 
- * @param priority Prioridad en syslog si se va a usar syslog
- * @param format Cadena formateada
- * @param param Lista de argumentos
+ * @brief Log in using the arguments
+ *
+ * @param priority Priority in syslog if syslog is to be used
+ * @param format Formatted string
+ * @param param Argument list
  */
 void vflog(int priority, char *format, va_list param);
 
 /**
- * @brief Loguea usando los argumentos
- * 
- * @param priority Prioridad en syslog si se va a usar syslog
- * @param format Cadena formateada
+ * @brief Log in using the arguments
+ *
+ * @param priority Priority in syslog if syslog is to be used
+ * @param format Formatted string
  */
 void flog(int priority, char *format, ...);
 
 /**
- * @brief Imprime la cadena formateada de argumentos variables y cierra el proceso con exit(1)
- * 
- * @param format Cadena de caracteres formateada
- * @param ... Parametros
+ * @brief Prints the formatted string of variable arguments and closes the process with exit(1)
+ *
+ * @param format Formatted character string
+ * @param ... Parameters
  */
 void errexit(char *formato, ...);
 
-#endif /* UTILS_H */
+#endif /*UTILS_H*/

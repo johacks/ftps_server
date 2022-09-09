@@ -1,15 +1,15 @@
 /**
  * @file callbacks.c
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
- * @brief Define los callbacks correspondientes a cada comando
+ * @brief Defines the callbacks corresponding to each command
  * @version 1.0
  * @date 12-04-2020
- * 
+ *
  * @copyright Copyright (c) 2020
- * 
+ *
  */
 
-#include "red.h"
+#include "network.h"
 #include "utils.h"
 #include "ftp.h"
 #include "callbacks.h"
@@ -17,121 +17,118 @@
 #include "config_parser.h"
 #include "authenticate.h"
 
-/* Define el array de callbacks */
-#define C(x) x ## _cb, /*!< Nombre de funcion de callback asociado a un comando implementado */
-/* Array de funciones */
-static const callback callbacks[IMP_COMMANDS_TOP] = { IMPLEMENTED_COMMANDS };
+/*Define the array of callbacks*/
+#define C(x) x##_cb, /*!< Callback function name associated with an implemented command*/
+/*array of functions*/
+static const callback callbacks[IMP_COMMANDS_TOP] = {IMPLEMENTED_COMMANDS};
 #undef C
 
-/* Algunas macros de comprobaciones ampliamente repetidas */
-#define CHECK_USERNAME(s, c)                                                            \
-{                                                                                       \
-    if ( !s->authenticated )                                                            \
-    {                                                                                   \
-        set_command_response(c, CODE_530_NO_LOGIN);                                     \
-        return CALLBACK_RET_PROCEED;                                                    \
-    }                                                                                   \
-} /*!< Comprueba en un callback que el usuario está logueado */
+/*Some widely repeated check macros*/
+#define CHECK_USERNAME(s, c)                            \
+    {                                                   \
+        if (!s->authenticated)                          \
+        {                                               \
+            set_command_response(c, CODE_530_NO_LOGIN); \
+            return CALLBACK_RET_PROCEED;                \
+        }                                               \
+    } /*!< Check in a callback that the user is logged in*/
 
-#define RESOLVE_PATH(s, c, buf, new)                                                    \
-{                                                                                       \
-    if ( get_real_path(s->current_dir, c->command_arg, buf) < ((new) ? 0 : 1) )         \
-    {                                                                                   \
-        set_command_response(c, CODE_550_NO_ACCESS);                                    \
-        return CALLBACK_RET_PROCEED;                                                    \
-    }                                                                                   \
-} /*!< Comprueba en un callback que el path pasado como argumento es correcto y lo almacena en buf */
-
+#define RESOLVE_PATH(s, c, buf, new)                                              \
+    {                                                                             \
+        if (get_real_path(s->current_dir, c->command_arg, buf) < ((new) ? 0 : 1)) \
+        {                                                                         \
+            set_command_response(c, CODE_550_NO_ACCESS);                          \
+            return CALLBACK_RET_PROCEED;                                          \
+        }                                                                         \
+    } /*!< Checks in a callback that the path passed as argument is correct and stores it in buf*/
 /**
- * @brief Llama al callback correspondiente a un comando
- * 
- * @param server_conf Configuracion general del servidor, solo lectura
- * @param session Valor de la sesion tras el ultimo comando
- * @param command Comando que genera el callback, conteniendo un posible argumento
- * @return uintptr_t Posible valor de retorno, que seria o un puntero o un entero
+ * @brief Calls the callback corresponding to a command
+ *
+ * @param server_conf General server configuration, read only
+ * @param session Value of the session after the last command
+ * @param command Command that generates the callback, containing a possible argument
+ * @return uintptr_t Possible return value, which would be either a pointer or an integer
  */
 uintptr_t command_callback(serverconf *server_conf, session_info *session, request_info *command)
 {
     return callbacks[command->implemented_command](server_conf, session, command);
 }
 
-/* CALLBACKS QUE UTILIZAN LA CONEXION DE DATOS */
+/*CALLBACKS THAT USE THE DATA CONNECTION*/
 /**
- * @brief Define los datos que se le pasan a un thread de datos
- * 
+ * @brief Defines the data that is passed to a data thread
+ *
  */
 typedef struct _data_thread_args
 {
-    pthread_t thread; /*!< Thread utilizado para la conexion de datos */
-    serverconf *server_conf; /*!< Configuracion del servidor */
-    session_info *session; /*!< Sesion FTP */
-    request_info *command; /*!< Comando que genera callback */
+    pthread_t thread;        /*!< Thread used for data connection*/
+    serverconf *server_conf; /*!< Server configuration*/
+    session_info *session;   /*!< Sesion FTP*/
+    request_info *command;   /*!< Command that generates callback*/
 } data_thread_args;
 
-#define DATA_cb(COMMAND) CALLBACK_RET COMMAND ## _cb (CALLBACK_ARGUMENTS)               \
-{                                                                                       \
-    data_thread_args *args = malloc(sizeof(data_thread_args));                          \
-    if ( !args )                                                                        \
-        return CALLBACK_RET_END_CONNECTION;                                             \
-    args->server_conf = server_conf;                                                    \
-    args->session = session;                                                            \
-    args->command = command;                                                            \
-    if ( pthread_create(&(args->thread), NULL, COMMAND ## _cb_thread, args) == -1)      \
-    {                                                                                   \
-        free(args);                                                                     \
-        return CALLBACK_RET_END_CONNECTION;                                             \
-    }                                                                                   \
-    pthread_detach(args->thread);                                                       \
-    return CALLBACK_RET_PROCEED;                                                        \
-} /*!< Hace de middleware entre el callback de un comando de datos y el thread de comando de datos */
-
-/* Sincronizacion entre dos hilos para avanzar a la vez tras un evento */
-#define RENDEZVOUS(mut1, mut2)                                                          \
-{                                                                                       \
-    sem_post(&(mut1));                                                                  \
-    sem_wait(&(mut2));                                                                  \
-    sem_post(&(mut1));                                                                  \
-} /*!< Dos procesos se sincronizan utilizando dos mutex */
-
-/* Libera los recursos iniciales de un thread tras un fin prematuro */
-#define THREAD_PREMATURE_EXIT(t)                                                        \
-{                                                                                       \
-    RENDEZVOUS(t->session->data_connection->data_conn_sem,                              \
-               t->session->data_connection->control_conn_sem)                           \
-    sem_post(&(t->session->data_connection->data_conn_sem));                            \
-    free(t);                                                                            \
-    return NULL;                                                                        \
-} /*!< Sale de la ejecución de un thread al principio de este, liberando recursos */
-
+#define DATA_cb(COMMAND)                                                            \
+    CALLBACK_RET COMMAND##_cb(CALLBACK_ARGUMENTS)                                   \
+    {                                                                               \
+        data_thread_args *args = malloc(sizeof(data_thread_args));                  \
+        if (!args)                                                                  \
+            return CALLBACK_RET_END_CONNECTION;                                     \
+        args->server_conf = server_conf;                                            \
+        args->session = session;                                                    \
+        args->command = command;                                                    \
+        if (pthread_create(&(args->thread), NULL, COMMAND##_cb_thread, args) == -1) \
+        {                                                                           \
+            free(args);                                                             \
+            return CALLBACK_RET_END_CONNECTION;                                     \
+        }                                                                           \
+        pthread_detach(args->thread);                                               \
+        return CALLBACK_RET_PROCEED;                                                \
+    } /*!< Acts as middleware between the data command callback and the data command thread*/
+/*Synchronization between two threads to advance at the same time after an event*/
+#define RENDEZVOUS(mut1, mut2) \
+    {                          \
+        sem_post(&(mut1));     \
+        sem_wait(&(mut2));     \
+        sem_post(&(mut1));     \
+    } /*!< Two processes are synchronized using two mutex*/
+/*Release the initial resources of a thread after a premature end*/
+#define THREAD_PREMATURE_EXIT(t)                                  \
+    {                                                             \
+        RENDEZVOUS(t->session->data_connection->data_conn_sem,    \
+                   t->session->data_connection->control_conn_sem) \
+        sem_post(&(t->session->data_connection->data_conn_sem));  \
+        free(t);                                                  \
+        return NULL;                                              \
+    } /*!< Exits the execution of a thread at the beginning of it, freeing resources*/
 /**
- * @brief Crea una conexion segura en el modo correspondiente a pasivo o activo
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP
- * @param command Comando que genera el callback, aqui se guardara la respuesta
- * @return int 1 si todo ok, -1 si error
+ * @brief Create a secure connection in the mode corresponding to passive or active
+ *
+ * @param server_conf Server configuration
+ * @param session FTP session
+ * @param command Command that generates the callback, the response will be saved here
+ * @return int 1 if all ok, -1 if error
  */
 int make_data_conn(serverconf *server_conf, session_info *session, request_info *command)
 {
     data_conn *dc = session->data_connection;
     char *expected_public_key = get_client_public_key(session->context);
-    if ( !session->authenticated )
+    if (!session->authenticated)
         set_command_response(command, CODE_530_NO_LOGIN);
-    else if ( dc->conn_state != DATA_CONN_AVAILABLE || !expected_public_key ) /* Ausencia de un PASV o PORT */
+    else if (dc->conn_state != DATA_CONN_AVAILABLE || !expected_public_key) /*Absence of a PASV or PORT*/
         set_command_response(command, CODE_503_BAD_SEQUENCE);
-    else if ( !dc->is_passive )
+    else if (!dc->is_passive)
     {
-        /* Se conecta, comprobando que el otro extremo usa el mismo certificado que en la conexion de control */
+        /*Connect, checking that the other end uses the same certificate as in the control connection*/
         dc->conn_fd = connect_and_handshake(server_conf->server_ctx, &(dc->context), expected_public_key,
                                             dc->client_port, FTP_DATA_PORT, dc->client_ip, server_conf->ftp_host);
         set_socket_timeouts(dc->conn_fd, DATA_SOCKET_TIMEOUT);
     }
-    else /* Modo pasivo */
+    else /*passive mode*/
         dc->conn_fd = tls_accept_and_handshake(server_conf->server_ctx, &(dc->context), dc->socket_fd, expected_public_key);
-    /* Comprobar todo ha ido bien */    
-    if ( dc->conn_fd < 0 )
+    /*Check all went well*/
+    if (dc->conn_fd < 0)
         set_command_response(command, CODE_425_CANNOT_OPEN_DATA, strerror(errno));
-    else /* Todo OK al establecer una conexion segura */
+    else /*All OK when establishing a secure connection*/
     {
         dc->conn_state = DATA_CONN_BUSY;
         return 1;
@@ -139,181 +136,179 @@ int make_data_conn(serverconf *server_conf, session_info *session, request_info 
     return -1;
 }
 
-/* Esta macro comprueba que hay una conexion de datos disponible, deshaciendo los semaforos
-correspondientes y saliendo del thread si no es el caso */
-#define CHECK_DATA_PORT(t)                                                              \
-{                                                                                       \
-    if ( make_data_conn(t->server_conf, t->session, t->command) < 0 )                   \
-        THREAD_PREMATURE_EXIT(t)                                                        \
-} /*!< Comprueba que se puede establecer una conexión correctamente de datos y sale si no es asi */                                                                                 
+/*This macro checks that there is a data connection available, undoing the semaphores
+corresponding and leaving the thread if it is not the case*/
+#define CHECK_DATA_PORT(t)                                              \
+    {                                                                   \
+        if (make_data_conn(t->server_conf, t->session, t->command) < 0) \
+            THREAD_PREMATURE_EXIT(t)                                    \
+    } /*!< Checks that a data connection can be established correctly and exits if not*/
 
 /**
- * @brief Envia un fichero
- * 
- * @param args Argumentos del hilo
- * @return void* NULL
+ * @brief Send a file
+ *
+ * @param args Thread arguments
+ * @return void*NULL
  */
 void *RETR_cb_thread(void *args)
 {
-    data_thread_args *t_args = (data_thread_args *) args;
-    CHECK_DATA_PORT(t_args) /* Crea conexion de datos */
-    /* Obtiene el elemento a dar */
+    data_thread_args *t_args = (data_thread_args *)args;
+    CHECK_DATA_PORT(t_args) /*Create data connection*/
+                            /*Get the element to give*/
     char path[XXL_SZ] = "";
-    if ( get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 1 || !path_is_file(path) )
+    if (get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 1 || !path_is_file(path))
     {
         set_command_response(t_args->command, CODE_550_NO_ACCESS);
         THREAD_PREMATURE_EXIT(t_args);
     }
-    /* Indicar primera respuesta al hilo de control: 150, enviando archivo */
+    /*Indicate first response to the control thread: 150, sending file*/
     set_command_response(t_args->command, CODE_150_RETR, path_no_root(path));
-    /* Sigue el protocolo marcado de concurrencia */
+    /*Follow the marked concurrency protocol*/
     RENDEZVOUS(t_args->session->data_connection->data_conn_sem, t_args->session->data_connection->control_conn_sem)
-    /* Inicia la transferencia */
+    /*Start the transfer*/
     FILE *f = fopen(path, "rb");
-    if ( !f )
+    if (!f)
         set_command_response(t_args->command, CODE_550_NO_ACCESS);
     else
     {
         ssize_t sent = send_file(t_args->session->data_connection->context, t_args->session->data_connection->conn_fd,
                                  f, t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
-        if ( sent < 0 )
+        if (sent < 0)
             set_command_response(t_args->command, CODE_550_NO_ACCESS);
         else
             set_command_response(t_args->command, CODE_226_DATA_TRANSFER, sent);
         fclose(f);
     }
-    sem_post(&(t_args->session->data_connection->data_conn_sem)); /* Indicar transmision finalizada */
+    sem_post(&(t_args->session->data_connection->data_conn_sem)); /*Indicate transmission finished*/
     free(t_args);
     return NULL;
 }
 
 /**
- * @brief Lista contenido de un path
- * 
- * @param args Argumentos del thread
- * @return void* 
+ * @brief List content of a path
+ *
+ * @param args Thread arguments
+ * @return void*
  */
 void *LIST_cb_thread(void *args)
 {
-    data_thread_args *t_args = (data_thread_args *) args;
-    CHECK_DATA_PORT(t_args) /* Crea conexion de datos */
-    /* Obtiene el elemento a dar */
+    data_thread_args *t_args = (data_thread_args *)args;
+    CHECK_DATA_PORT(t_args) /*Create data connection*/
+                            /*Get the element to give*/
     char path[XXL_SZ] = "";
-    if ( get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 1)
+    if (get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 1)
     {
         set_command_response(t_args->command, CODE_550_NO_ACCESS);
         THREAD_PREMATURE_EXIT(t_args);
     }
-    /* Indicar primera respuesta al hilo de control: 150, enviando archivo */
+    /*Indicate first response to the control thread: 150, sending file*/
     set_command_response(t_args->command, CODE_150_LIST);
-    /* Sigue el protocolo marcado de concurrencia */
+    /*Follow the marked concurrency protocol*/
     RENDEZVOUS(t_args->session->data_connection->data_conn_sem, t_args->session->data_connection->control_conn_sem)
-    /* Inicia la transferencia */
+    /*Start the transfer*/
     FILE *f = list_directories(t_args->command->command_arg, t_args->session->current_dir);
-    if ( !f )
+    if (!f)
         set_command_response(t_args->command, CODE_550_NO_ACCESS);
     else
     {
         ssize_t sent = send_file(t_args->session->data_connection->context, t_args->session->data_connection->conn_fd,
                                  f, t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
-        if ( sent < 0 )
+        if (sent < 0)
             set_command_response(t_args->command, CODE_550_NO_ACCESS);
         else
             set_command_response(t_args->command, CODE_226_DATA_TRANSFER, sent);
         pclose(f);
     }
-    sem_post(&(t_args->session->data_connection->data_conn_sem)); /* Indicar transmision finalizada */
+    sem_post(&(t_args->session->data_connection->data_conn_sem)); /*Indicate transmission finished*/
     free(t_args);
     return NULL;
 }
 
 /**
- * @brief Recibe un fichero del cliente
- * 
- * @param args Argumentos del thread
- * @return void* NULL
+ * @brief Receive a file from the client
+ *
+ * @param args Thread arguments
+ * @return void*NULL
  */
 void *STOR_cb_thread(void *args)
 {
-    data_thread_args *t_args = (data_thread_args *) args;
-    CHECK_DATA_PORT(t_args) /* Crea conexion de datos */
-    /* Obtiene el elemento a dar */
+    data_thread_args *t_args = (data_thread_args *)args;
+    CHECK_DATA_PORT(t_args) /*Create data connection*/
+                            /*Get the element to give*/
     char path[XXL_SZ] = "";
-    if ( get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 0 )
+    if (get_real_path(t_args->session->current_dir, t_args->command->command_arg, path) < 0)
     {
         set_command_response(t_args->command, CODE_501_BAD_ARGS);
         THREAD_PREMATURE_EXIT(t_args);
     }
-    /* Indicar primera respuesta al hilo de control: 150, enviando archivo */
+    /*Indicate first response to the control thread: 150, sending file*/
     set_command_response(t_args->command, CODE_150_STOR, path_no_root(path));
-    /* Sigue el protocolo marcado de concurrencia */
+    /*Follow the marked concurrency protocol*/
     RENDEZVOUS(t_args->session->data_connection->data_conn_sem, t_args->session->data_connection->control_conn_sem)
-    /* Inicia la transferencia */
+    /*Start the transfer*/
     FILE *f = fopen(path, "wb");
-    if ( !f ) /* Posible error al abrir fichero */
+    if (!f) /*Possible error when opening file*/
         set_command_response(t_args->command, (errno == EACCES) ? CODE_550_NO_ACCESS : CODE_452_NO_SPACE);
-    else /* Leer fichero */
+    else /*read file*/
     {
         ssize_t sent = read_to_file(t_args->session->data_connection->context, f, t_args->session->data_connection->conn_fd,
                                     t_args->session->ascii_mode, &(t_args->session->data_connection->abort));
-        if ( sent < 0 )
+        if (sent < 0)
             set_command_response(t_args->command, CODE_451_DATA_CONN_LOST);
         else
             set_command_response(t_args->command, CODE_226_DATA_TRANSFER, sent);
         fclose(f);
     }
-    sem_post(&(t_args->session->data_connection->data_conn_sem)); /* Indicar transmision finalizada */
+    sem_post(&(t_args->session->data_connection->data_conn_sem)); /*Indicate transmission finished*/
     free(t_args);
     return NULL;
 }
 
-/* Genera los callbacks de funciones que necesitan thread de datos */
+/*Generates callbacks of functions that need data thread*/
 /**
- * @brief Construir función de middleware entre el callback de RETR y un hilo para atenderlo
+ * @brief Construct middleware function between the RETR callback and a thread to serve it
  */
 DATA_cb(RETR)
 
-/**
- * @brief Construir función de middleware entre el callback de LIST y un hilo para atenderlo
- */
-DATA_cb(LIST)
+    /**
+     * @brief Construct middleware function between the LIST callback and a thread to serve it
+     */
+    DATA_cb(LIST)
 
-/**
- * @brief Construir función de middleware entre el callback de STOR y un hilo para atenderlo
- */
-DATA_cb(STOR) /*!< Funcion que crea un thread para atender a STOR */
-
-/* CALLBACKS DE CONTROL */
-
-/**
- * @brief Lista de comandos implementados por el servidor
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP
- * @param command Comando que genera el callback
- * @return uintptr_t 
- */
-uintptr_t HELP_cb(serverconf *server_conf, session_info *session, request_info *command)
+    /**
+     * @brief Construct middleware function between the STOR callback and a thread to serve it
+     */
+    DATA_cb(STOR) /*!< Function that creates a thread to serve STOR*/
+    /*CONTROL CALLBACKS*/
+    /**
+     * @brief List of commands implemented by the server
+     *
+     * @param server_conf Server configuration
+     * @param session FTP session
+     * @param command Command that generates the callback
+     * @return uintptr_t
+     */
+    uintptr_t HELP_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     strcpy(command->response, CODE_214_HELP);
-    for ( int i = 0; i < IMP_COMMANDS_TOP; i++ )
+    for (int i = 0; i < IMP_COMMANDS_TOP; i++)
     {
-        strcat(command->response, get_imp_command_name((imp_commands) i));
+        strcat(command->response, get_imp_command_name((imp_commands)i));
         strcat(command->response, ",");
     }
     command->response_len = strlen(command->response);
-    command->response[command->response_len - 1] = '\r'; /* Cambiar ultima coma por salto de linea */
+    command->response[command->response_len - 1] = '\r'; /*Change last comma to line break*/
     command->response[command->response_len++] = '\n';
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Ofrece un puerto al cliente para transmision de datos
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion actual, se guardara informacion del socket que se abre
- * @param command Comando que genera el callback
- * @return uintptr_t 
+ * @brief Offers a port to the client for data transmission
+ *
+ * @param server_conf Server configuration
+ * @param session Current session, information about the socket that is opened will be saved
+ * @param command Command that generates the callback
+ * @return uintptr_t
  */
 uintptr_t PASV_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
@@ -321,14 +316,15 @@ uintptr_t PASV_cb(serverconf *server_conf, session_info *session, request_info *
     int port;
     char port_string[sizeof("xxx,xxx,xxx,xxx,ppp,ppp")];
 
-    MUTEX_DO(session->data_connection->mutex, /* Operacion atomica */
-        if ( session->data_connection->conn_state != DATA_CONN_CLOSED ) /* Conexion de datos abierta */
-            set_command_response(command, CODE_421_DATA_OPEN);
-        /* Abre y escucha en un puerto pasivo */
-        else if ( (port = passive_data_socket_fd(server_conf->ftp_host, /* Fallo al abrir socket */
-                  &(server_conf->free_passive_ports), &(session->data_connection->socket_fd))) == -1 )
+    MUTEX_DO(
+        session->data_connection->mutex,                              /*Atomic operation*/
+        if (session->data_connection->conn_state != DATA_CONN_CLOSED) /*Open data connection*/
+        set_command_response(command, CODE_421_DATA_OPEN);
+        /*Open and listen on a passive port*/
+        else if ((port = passive_data_socket_fd(server_conf->ftp_host, /*Failed to open socket*/
+                                                &(server_conf->free_passive_ports), &(session->data_connection->socket_fd))) == -1)
             set_command_response(command, CODE_425_CANNOT_OPEN_DATA, strerror(errno));
-        else /* Generar string de respuesta PASV */
+        else /*Generate PASV response string*/
         {
             set_command_response(command, CODE_227_PASV_RES, make_port_string(server_conf->ftp_host, port, port_string));
             session->data_connection->conn_state = DATA_CONN_AVAILABLE;
@@ -338,29 +334,29 @@ uintptr_t PASV_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Se conecta a un puerto del cliente en modo de transmision de datos
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion actual, se guardara informacion del socket que se abre
- * @param command Comando que genera el callback, se espera la ip y puerto de datos del cliente
- * @return uintptr_t 
+ * @brief Connect to a client port in data transmission mode
+ *
+ * @param server_conf Server configuration
+ * @param session Current session, information about the socket that is opened will be saved
+ * @param command Command that generates the callback, the ip and data port of the client are expected
+ * @return uintptr_t
  */
 uintptr_t PORT_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' ) /* Se espera un Port string */ 
+    if (command->command_arg[0] == '\0') /*Expect a Port string*/
     {
         set_command_response(command, CODE_501_BAD_ARGS);
         return CALLBACK_RET_PROCEED;
     }
-    MUTEX_DO(session->data_connection->mutex, /* Operacion protegida */
-        if ( session->data_connection->conn_state != DATA_CONN_CLOSED )
-            set_command_response(command, CODE_421_DATA_OPEN); /* Intentar parsear port string */
-        else if ( parse_port_string(command->command_arg, session->data_connection->client_ip, &(session->data_connection->client_port)) < 0 )
-            set_command_response(command, CODE_501_BAD_ARGS); /* Fallo al parsear port string */
-        else
-        {
-            set_command_response(command, CODE_200_OP_OK); /* Port string parseado correctamente */
+    MUTEX_DO(
+        session->data_connection->mutex, /*Protected operation*/
+        if (session->data_connection->conn_state != DATA_CONN_CLOSED)
+            set_command_response(command, CODE_421_DATA_OPEN); /*Intentar parsear port string*/
+        else if (parse_port_string(command->command_arg, session->data_connection->client_ip, &(session->data_connection->client_port)) < 0)
+            set_command_response(command, CODE_501_BAD_ARGS); /*Failed to parse port string*/
+        else {
+            set_command_response(command, CODE_200_OP_OK); /*Port string successfully parsed*/
             session->data_connection->conn_state = DATA_CONN_AVAILABLE;
             session->data_connection->is_passive = 0;
         })
@@ -368,29 +364,29 @@ uintptr_t PORT_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Borra un archivo del servidor
- * 
- * @param server_conf Configuración del servidor
- * @param session Sesion FTP actual
- * @param command Comando que genera el callback, se espera encontrar nombre del archivo a borrar
- * @return uintptr_t 
+ * @brief Delete a file from the server
+ *
+ * @param server_conf Server configuration
+ * @param session Current FTP session
+ * @param command Command that generates the callback, it is expected to find the name of the file to delete
+ * @return uintptr_t
  */
 uintptr_t DELE_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' ) /* Sin nombre del fichero */
+    if (command->command_arg[0] == '\0') /*No filename*/
         set_command_response(command, CODE_501_BAD_ARGS);
     else
     {
         char path[XXL_SZ] = "";
-        RESOLVE_PATH(session, command, path, 0); /* Recoger fichero a borrar */
-        if ( !path_is_file(path) )
-            set_command_response(command, CODE_550_NO_DELE, "No es un fichero"); /* Comprobar que es fichero */
+        RESOLVE_PATH(session, command, path, 0); /*Fetch file to delete*/
+        if (!path_is_file(path))
+            set_command_response(command, CODE_550_NO_DELE, "No es un fichero"); /*Check that it is a file*/
         else
         {
             char rm_cmd[XXL_SZ + sizeof("rm -r ")];
-            sprintf(rm_cmd, "rm -r %s", path); /* Se utilizara el comando del sistema */ 
-            if ( system(rm_cmd) != 0 || access(path, F_OK) != -1 ) /* El fichero debe haberse borrado */
+            sprintf(rm_cmd, "rm -r %s", path);                   /*The system command will be used*/
+            if (system(rm_cmd) != 0 || access(path, F_OK) != -1) /*The file must have been deleted*/
                 set_command_response(command, CODE_550_NO_DELE, strerror(errno));
             else
                 set_command_response(command, CODE_250_DELE_OK, path_no_root(path));
@@ -400,29 +396,29 @@ uintptr_t DELE_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Borra un directorio recursivamente
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion actual
- * @param command Comando que genera el callback, se espera encontrar nombre del directorio a borrar
- * @return uintptr_t 
+ * @brief Delete a directory recursively
+ *
+ * @param server_conf Server configuration
+ * @param session Current session
+ * @param command Command that generates the callback, it is expected to find the name of the directory to delete
+ * @return uintptr_t
  */
 uintptr_t RMDA_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' ) /* Sin nombre del directorio */
+    if (command->command_arg[0] == '\0') /*No directory name*/
         set_command_response(command, CODE_501_BAD_ARGS);
     else
     {
         char path[XXL_SZ] = "";
-        RESOLVE_PATH(session, command, path, 0); /* Recoger directorio a borrar */
-        if ( !path_is_dir(path) )
-            set_command_response(command, CODE_550_NO_DELE, "No es un directorio"); /* Comprobar que es directorio */
+        RESOLVE_PATH(session, command, path, 0); /*Fetch directory to delete*/
+        if (!path_is_dir(path))
+            set_command_response(command, CODE_550_NO_DELE, "No es un directorio"); /*Check that it is directory*/
         else
         {
             char rm_cmd[XXL_SZ + sizeof("rm -rfd ")];
-            sprintf(rm_cmd, "rm -rfd %s", path); /* Se utilizara el comando del sistema */ 
-            if ( system(rm_cmd) != 0 || access(path, F_OK) != -1 ) /* El directorio debe haberse borrado */
+            sprintf(rm_cmd, "rm -rfd %s", path);                 /*The system command will be used*/
+            if (system(rm_cmd) != 0 || access(path, F_OK) != -1) /*The directory must have been deleted*/
                 set_command_response(command, CODE_550_NO_DELE, strerror(errno));
             else
                 set_command_response(command, CODE_250_DELE_OK, path_no_root(path));
@@ -432,106 +428,106 @@ uintptr_t RMDA_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Borra un directorio vacio
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion actual
- * @param command Comando que genera el callback, se espera encontrar el nombre del directorio a borrar
- * @return uintptr_t 
+ * @brief Delete an empty directory
+ *
+ * @param server_conf Server configuration
+ * @param session Current session
+ * @param command Command that generates the callback, it is expected to find the name of the directory to delete
+ * @return uintptr_t
  */
 uintptr_t RMD_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' ) /* Sin nombre del directorio */
+    if (command->command_arg[0] == '\0') /*No directory name*/
         set_command_response(command, CODE_501_BAD_ARGS);
     else
     {
         char path[XXL_SZ] = "";
-        RESOLVE_PATH(session, command, path, 0); /* Recoger directorio a borrar */
-        if ( rmdir(path) == -1 )
+        RESOLVE_PATH(session, command, path, 0); /*Fetch directory to delete*/
+        if (rmdir(path) == -1)
             set_command_response(command, CODE_550_NO_DELE, strerror(errno));
         else
-            set_command_response(command, CODE_250_DELE_OK, path_no_root(path)); /* Devolver path al directorio eliminado */
+            set_command_response(command, CODE_250_DELE_OK, path_no_root(path)); /*Return path to deleted directory*/
     }
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Crea un directorio
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP actual
- * @param command Comando que genera el callback, se espera nombre del directorio a crear como argumento
- * @return uintptr_t 
+ * @brief Create a directory
+ *
+ * @param server_conf Server configuration
+ * @param session Current FTP session
+ * @param command Command that generates the callback, expecting the name of the directory to create as an argument
+ * @return uintptr_t
  */
 uintptr_t MKD_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' )
+    if (command->command_arg[0] == '\0')
         set_command_response(command, CODE_501_BAD_ARGS);
     else
     {
         char path[XXL_SZ] = "";
         RESOLVE_PATH(session, command, path, 1);
-        if ( mkdir(path, 0777) == -1 ) /* Crea un directorio en el path resuelto */
+        if (mkdir(path, 0777) == -1) /*Create a directory on the resolved path*/
             set_command_response(command, CODE_550_NO_ACCESS);
         else
-            set_command_response(command, CODE_257_MKD_OK, path_no_root(path)); /* Devuelve el nombre del path creado */
+            set_command_response(command, CODE_257_MKD_OK, path_no_root(path)); /*Returns the name of the created path*/
     }
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Cambia al directorio padre
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion, que contiene el directorio actual
- * @param command Comando que genera el callback
- * @return uintptr_t 
+ * @brief Change to the parent directory
+ *
+ * @param server_conf Server configuration
+ * @param session Session, which contains the current directory
+ * @param command Command that generates the callback
+ * @return uintptr_t
  */
 uintptr_t CDUP_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( ch_to_parent_dir(session->current_dir) < 0 )
-        return CALLBACK_RET_END_CONNECTION; /* Error de memoria */
-    set_command_response(command, CODE_250_CHDIR_OK, path_no_root(session->current_dir));   
+    if (ch_to_parent_dir(session->current_dir) < 0)
+        return CALLBACK_RET_END_CONNECTION; /*memory error*/
+    set_command_response(command, CODE_250_CHDIR_OK, path_no_root(session->current_dir));
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Cambia el directorio actual
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion, que contiene el directorio actual
- * @param command Comando que genera el callback. Se espera argumento con el directorio siguiente
- * @return uintptr_t 
+ * @brief Change the current directory
+ *
+ * @param server_conf Server configuration
+ * @param session Session, which contains the current directory
+ * @param command Command that generates the callback. Argument is expected with the following directory
+ * @return uintptr_t
  */
 uintptr_t CWD_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' )
+    if (command->command_arg[0] == '\0')
         strcpy(command->command_arg, "/");
-    switch ( ch_current_dir(session->current_dir, command->command_arg) )
+    switch (ch_current_dir(session->current_dir, command->command_arg))
     {
     case -1:
-        return CALLBACK_RET_END_CONNECTION; /* Error de memoria */
+        return CALLBACK_RET_END_CONNECTION; /*memory error*/
     case -2:
         set_command_response(command, CODE_550_NO_ACCESS);
         break;
     default:
-        set_command_response(command, CODE_250_CHDIR_OK, path_no_root(session->current_dir));   
+        set_command_response(command, CODE_250_CHDIR_OK, path_no_root(session->current_dir));
         break;
     }
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Imprime el directorio actual
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion, que contiene el directorio actual
- * @param command Comando que genera el callback
- * @return uintptr_t 
+ * @brief Print the current directory
+ *
+ * @param server_conf Server configuration
+ * @param session Session, which contains the current directory
+ * @param command Command that generates the callback
+ * @return uintptr_t
  */
 uintptr_t PWD_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
@@ -541,11 +537,11 @@ uintptr_t PWD_cb(serverconf *server_conf, session_info *session, request_info *c
 }
 
 /**
- * @brief Termina la sesion actual
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion actual
- * @param command Comando que genera el callback
+ * @brief Ends the current session
+ *
+ * @param server_conf Server configuration
+ * @param session Current session
+ * @param command Command that generates the callback
  * @return uintptr_t CALLBACK_RET_END_CONNECTION
  */
 uintptr_t QUIT_cb(serverconf *server_conf, session_info *session, request_info *command)
@@ -555,11 +551,11 @@ uintptr_t QUIT_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Termina de renombrar el fichero
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP, espera encontrar nombre origen
- * @param command Comando que genera el callback
+ * @brief Finish renaming the file
+ *
+ * @param server_conf Server configuration
+ * @param session FTP session, expect to find source name
+ * @param command Command that generates the callback
  * @return uintptr_t CALLBACK_RET_PROCEED
  */
 uintptr_t RNTO_cb(serverconf *server_conf, session_info *session, request_info *command)
@@ -567,57 +563,57 @@ uintptr_t RNTO_cb(serverconf *server_conf, session_info *session, request_info *
     CHECK_USERNAME(session, command)
     char path[XXL_SZ] = "";
     RESOLVE_PATH(session, command, path, 1)
-    char *rnfr = (char *) get_attribute(session, RENAME_FROM_ATTR); /* Recupera fichero origen */
-    if ( ((uintptr_t) rnfr) == ATTR_NOT_FOUND )
+    char *rnfr = (char *)get_attribute(session, RENAME_FROM_ATTR); /*Retrieve source file*/
+    if (((uintptr_t)rnfr) == ATTR_NOT_FOUND)
         set_command_response(command, CODE_503_BAD_SEQUENCE);
     else
     {
-        rename(rnfr, path); /* Renombra el fichero */
+        rename(rnfr, path); /*Rename the file*/
         set_command_response(command, CODE_25O_FILE_OP_OK);
     }
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Renombra un fichero
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP, añade atributo de fichero origen
- * @param command Comando que genera el callback
- * @return uintptr_t CALLBACK_RET_PROCEED o CALLBACK_RET_END_CONNECTION
+ * @brief Rename a file
+ *
+ * @param server_conf Server configuration
+ * @param session FTP session, add source file attribute
+ * @param command Command that generates the callback
+ * @return uintptr_t CALLBACK_RET_PROCEED or CALLBACK_RET_END_CONNECTION
  */
 uintptr_t RNFR_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     char *path = malloc(XXL_SZ);
-    if ( !path )
+    if (!path)
         return CALLBACK_RET_END_CONNECTION;
     CHECK_USERNAME(session, command)
-    if ( get_real_path(session->current_dir, command->command_arg, path) < 1 )
+    if (get_real_path(session->current_dir, command->command_arg, path) < 1)
     {
         free(path);
         set_command_response(command, CODE_550_NO_ACCESS);
         return CALLBACK_RET_PROCEED;
     }
-    set_attribute(session, RENAME_FROM_ATTR, (uintptr_t) path, 1, 1); /* Atributo de sesion: archivo a renombrar */
+    set_attribute(session, RENAME_FROM_ATTR, (uintptr_t)path, 1, 1); /*session attribute: file to rename*/
     set_command_response(command, CODE_350_RNTO_NEEDED);
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Tamaño en bytes de un fichero
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP
- * @param command Comando enviado
- * @return uintptr_t 
+ * @brief Size in bytes of a file
+ *
+ * @param server_conf Server configuration
+ * @param session FTP session
+ * @param command Command sent
+ * @return uintptr_t
  */
 uintptr_t SIZE_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     char path[XXL_SZ];
     CHECK_USERNAME(session, command)
     RESOLVE_PATH(session, command, path, 0)
-    size_t s = name_file_size(path); /* Calcular tamaño de fichero */
-    if ( s == -1 )
+    size_t s = name_file_size(path); /*Calculate file size*/
+    if (s == -1)
         set_command_response(command, CODE_550_NO_ACCESS);
     else
         set_command_response(command, CODE_213_FILE_SIZE, s);
@@ -625,19 +621,19 @@ uintptr_t SIZE_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Cambia a modo binario o ascii
- * 
- * @param server_conf Configuracion del servidor
- * @param session Informacion de sesion
- * @param command Comando que genera el callback
- * @return uintptr_t 
+ * @brief Switch to binary or ascii mode
+ *
+ * @param server_conf Server configuration
+ * @param session Session information
+ * @param command Command that generates the callback
+ * @return uintptr_t
  */
 uintptr_t TYPE_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( !strcmp(command->command_arg, "A") ) /* Modo ascii */
+    if (!strcmp(command->command_arg, "A")) /*Ascii mode*/
         session->ascii_mode = 1;
-    else if ( !strcmp(command->command_arg, "I") ) /* Modo binario */
+    else if (!strcmp(command->command_arg, "I")) /*Binary mode*/
         session->ascii_mode = 0;
     else
         set_command_response(command, CODE_501_BAD_ARGS);
@@ -646,12 +642,12 @@ uintptr_t TYPE_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Indica sistema operativo
- * 
- * @param server_conf Configuracion del servidor
- * @param session Informacion de sesion
- * @param command Comando que genera el callback
- * @return uintptr_t 
+ * @brief Indicates operating system
+ *
+ * @param server_conf Server configuration
+ * @param session Session information
+ * @param command Command that generates the callback
+ * @return uintptr_t
  */
 uintptr_t SYST_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
@@ -660,12 +656,12 @@ uintptr_t SYST_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Indica funcionalidades adicionales
- * 
- * @param server_conf Configuracion del servidor
- * @param session Informacion de sesion
- * @param command Comando que genera el callback
- * @return uintptr_t 
+ * @brief Indicates additional features
+ *
+ * @param server_conf Server configuration
+ * @param session Session information
+ * @param command Command that generates the callback
+ * @return uintptr_t
  */
 uintptr_t FEAT_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
@@ -674,140 +670,138 @@ uintptr_t FEAT_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief No hace nada
- * 
- * @param server_conf Configuracion del servidor
- * @param session Informacion de sesion
- * @param command Comando que genera el callback
- * @return uintptr_t 
+ * @brief does nothing
+ *
+ * @param server_conf Server configuration
+ * @param session Session information
+ * @param command Command that generates the callback
+ * @return uintptr_t
  */
 uintptr_t NOOP_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
-    CHECK_USERNAME(session, command)    
+    CHECK_USERNAME(session, command)
     set_command_response(command, CODE_200_OP_OK);
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Cambia modo de transmision (compresion)
- * 
- * @param server_conf Configuracion del servidor
- * @param session Informacion de sesion
- * @param command Comando que genera el callback, se espera argumento S, B, C o Z
- * @return uintptr_t 
+ * @brief Change transmission mode (compression)
+ *
+ * @param server_conf Server configuration
+ * @param session Session information
+ * @param command Command that generates the callback, argument S, B, C or Z is expected
+ * @return uintptr_t
  */
 uintptr_t MODE_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' )
+    if (command->command_arg[0] == '\0')
         set_command_response(command, CODE_501_BAD_ARGS);
-    else if ( !strcmp(command->command_arg, "S") ) /* Modo Stream */
+    else if (!strcmp(command->command_arg, "S")) /*Modo Stream*/
         set_command_response(command, CODE_200_OP_OK);
-    else /* Actualmente solo se soporta stream */
+    else /*Currently only stream is supported*/
         set_command_response(command, CODE_504_UNSUPORTED_PARAM);
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Cambiar estructura de archivos de servidor
- * 
- * @param server_conf Configuracion del servidor
- * @param session Informacion de sesion
- * @param command Comando que genera el callback, se espera argumento F, R o P
- * @return uintptr_t 
+ * @brief Change server file structure
+ *
+ * @param server_conf Server configuration
+ * @param session Session information
+ * @param command Command that generates the callback, argument F, R or P is expected
+ * @return uintptr_t
  */
 uintptr_t STRU_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
     CHECK_USERNAME(session, command)
-    if ( command->command_arg[0] == '\0' )
+    if (command->command_arg[0] == '\0')
         set_command_response(command, CODE_501_BAD_ARGS);
-    else if ( !strcmp(command->command_arg, "F") ) /* Modo Fichero */
+    else if (!strcmp(command->command_arg, "F")) /*File mode*/
         set_command_response(command, CODE_200_OP_OK);
-    else /* Actualmente solo se soporta modo fichero */
+    else /*Currently only file mode is supported*/
         set_command_response(command, CODE_504_UNSUPORTED_PARAM);
     return CALLBACK_RET_PROCEED;
 }
 
-
-/* CALLBACKS DE SEGURIDAD */
-
+/*SECURITY CALLBACKS*/
 /**
- * @brief Autentica un usuario mediante su contraseña
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion actual,se espera encontrar el atributo username
- * @param command Comando, se espera encontrar una contraseña
- * @return uintptr_t 
+ * @brief Authenticates a user using their password
+ *
+ * @param server_conf Server configuration
+ * @param session Current session, expect to find username attribute
+ * @param command Command, expect to find a password
+ * @return uintptr_t
  */
 uintptr_t PASS_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
-    if ( !(session->secure && session->pbsz_sent) ) /* Siempre AUTH primero */
+    if (!(session->secure && session->pbsz_sent)) /*Always AUTH first*/
     {
         set_command_response(command, CODE_522_NO_TLS);
         return CALLBACK_RET_PROCEED;
     }
-    char *username = (char *) get_attribute(session, USERNAME_ATTR);
-    /* Si no se ha mandado comando user con el nombre de usuario, exigirlo */
-    if ( ((uintptr_t) username) == ATTR_NOT_FOUND )
+    char *username = (char *)get_attribute(session, USERNAME_ATTR);
+    /*If no user command has been sent with the username, require it*/
+    if (((uintptr_t)username) == ATTR_NOT_FOUND)
         set_command_response(command, CODE_503_BAD_SEQUENCE);
     else
     {
-        /* Autenticar usuario */
-        if ( !(validate_pass(command->command_arg) && validate_user(username)) )
+        /*Authenticate user*/
+        if (!(validate_pass(command->command_arg) && validate_user(username)))
             set_command_response(command, CODE_430_INVALID_AUTH);
         else
         {
-            /* Contraseña correcta, indicar en la sesion que el usuario se ha logueado */
+            /*Correct password, indicate in the session that the user has logged in*/
             set_command_response(command, CODE_230_AUTH_OK);
             session->authenticated = 1;
         }
-        explicit_bzero(command->command_arg, strlen(command->command_arg)); /* Limpiar la contraseña en crudo */
+        explicit_bzero(command->command_arg, strlen(command->command_arg)); /*Clear raw password*/
     }
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Recibe un nombre de usuario y lo guarda en sesion
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion actual, no se espera ningun atributo
- * @param command Comando ejecutado, se espera un nombre de usuario
- * @return uintptr_t devuelve CALLBACK_RET_END_CONNECTION si fallo de memoria
+ * @brief Receive a username and save it in session
+ *
+ * @param server_conf Server configuration
+ * @param session Current session, no attribute expected
+ * @param command Command executed, expecting a username
+ * @return uintptr_t returns CALLBACK_RET_END_CONNECTION if out of memory
  */
 uintptr_t USER_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
-    if ( !(session->secure && session->pbsz_sent) ) /* Siempre AUTH primero */
+    if (!(session->secure && session->pbsz_sent)) /*Always AUTH first*/
     {
         set_command_response(command, CODE_522_NO_TLS);
         return CALLBACK_RET_PROCEED;
     }
     char *username = malloc(FTP_USER_MAX * sizeof(char));
-    if ( !username )
+    if (!username)
         return CALLBACK_RET_END_CONNECTION;
     strncpy(username, command->command_arg, FTP_USER_MAX - 1);
-    /* Guardar el atributo de nombre de usuario al que debe llamarse free con caducidad 1 */
-    set_attribute(session, USERNAME_ATTR, (uintptr_t) username, 1, 1);
-    /* Exigir la contraseña */
+    /*Save the username attribute which should be called free with expiration 1*/
+    set_attribute(session, USERNAME_ATTR, (uintptr_t)username, 1, 1);
+    /*Require the password*/
     set_command_response(command, CODE_331_PASS);
     return CALLBACK_RET_PROCEED;
 }
 
 /**
- * @brief Activa comunicacion segura
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP
- * @param command Comando que genera el callback, se espera el argumento TLS
- * @return uintptr_t Puede devolver CALLBACK_RET_DONT_SEND
+ * @brief Activate secure communication
+ *
+ * @param server_conf Server configuration
+ * @param session FTP session
+ * @param command Command that generates the callback, the TLS argument is expected
+ * @return uintptr_t May return CALLBACK_RET_DONT_SEND
  */
 uintptr_t AUTH_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
-    if ( session->secure ) /* No permitir AUTH doble */
+    if (session->secure) /*Do not allow double AUTH*/
     {
         set_command_response(command, CODE_503_BAD_SEQUENCE);
         return CALLBACK_RET_PROCEED;
     }
-    if ( strcmp(command->command_arg, "TLS") ) /* Solo acepta TLS */
+    if (strcmp(command->command_arg, "TLS")) /*Only accept TLS*/
     {
         set_command_response(command, CODE_431_INVALID_SEC, command->command_arg);
         return CALLBACK_RET_PROCEED;
@@ -815,33 +809,33 @@ uintptr_t AUTH_cb(serverconf *server_conf, session_info *session, request_info *
     char *buf = alloca(XXXL_SZ);
     send(session->clt_fd, CODE_234_START_NEG, sizeof(CODE_234_START_NEG) - 1, MSG_NOSIGNAL);
     session->context = tls_accept(server_conf->server_ctx);
-    tls_request_client_certificate(session->context); /* Necesitamos certificado del cliente */
-    digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Envia peticion de certificado al cliente */
-    digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /* Recibe certificado del cliente */
-    if ( !tls_context_check_client_certificate(NULL, session->context) ) /* Comprueba certificado del cliente */
+    tls_request_client_certificate(session->context);                          /*We need client certificate*/
+    digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /*Send certificate request to client*/
+    digest_tls(session->context, session->clt_fd, buf, XXXL_SZ, MSG_NOSIGNAL); /*Receive client certificate*/
+    if (!tls_context_check_client_certificate(NULL, session->context))         /*Check client certificate*/
     {
         ssend(session->context, session->clt_fd, CODE_421_BAD_TLS_NEG, sizeof(CODE_421_BAD_TLS_NEG) - 1, MSG_NOSIGNAL);
         tls_destroy_context(session->context);
         session->context = NULL;
         return CALLBACK_RET_END_CONNECTION;
     }
-    session->secure = 1; /* Flag activado */
+    session->secure = 1; /*flag activated*/
     return CALLBACK_RET_DONT_SEND;
 }
 
 /**
- * @brief Indica nivel de seguridad
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP
- * @param command Comando que genera el callback, se espera el argumento P
- * @return uintptr_t 
+ * @brief Indicates security level
+ *
+ * @param server_conf Server configuration
+ * @param session FTP session
+ * @param command Command that generates the callback, argument P is expected
+ * @return uintptr_t
  */
 uintptr_t PROT_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
-    if ( !session->secure || !session->pbsz_sent )
+    if (!session->secure || !session->pbsz_sent)
         set_command_response(command, CODE_503_BAD_SEQUENCE);
-    else if ( strcmp(command->command_arg, "P") )
+    else if (strcmp(command->command_arg, "P"))
         set_command_response(command, CODE_536_INSUFFICIENT_SEC);
     else
         set_command_response(command, CODE_200_OP_OK);
@@ -849,18 +843,18 @@ uintptr_t PROT_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /**
- * @brief Cambia tamaño de buffer
- * 
- * @param server_conf Configuracion del servidor
- * @param session Sesion FTP
- * @param command Comando que genera el callback, se espera el argumento 0
- * @return uintptr_t 
+ * @brief Change buffer size
+ *
+ * @param server_conf Server configuration
+ * @param session FTP session
+ * @param command Command that generates the callback, argument 0 is expected
+ * @return uintptr_t
  */
 uintptr_t PBSZ_cb(serverconf *server_conf, session_info *session, request_info *command)
 {
-    if ( !session->secure )
+    if (!session->secure)
         set_command_response(command, CODE_503_BAD_SEQUENCE);
-    else if ( strcmp(command->command_arg, "0") )
+    else if (strcmp(command->command_arg, "0"))
         set_command_response(command, CODE_504_UNSUPORTED_PARAM);
     else
     {
@@ -871,14 +865,15 @@ uintptr_t PBSZ_cb(serverconf *server_conf, session_info *session, request_info *
 }
 
 /*.......*/
-
 /**
- * @brief Debe existir este callback por motivos de compilacion
- * 
- * @param server_conf configuracion del servidor
- * @param session sesion FTP
- * @param command comando ABOR
- * @return uintptr_t 
+ * @brief This callback must exist for compilation reasons
+ *
+ * @param server_conf server configuration
+ * @param session FTP session
+ * @param command ABOR command
+ * @return uintptr_t
  */
 uintptr_t ABOR_cb(serverconf *server_conf, session_info *session, request_info *command)
-{ return CALLBACK_RET_PROCEED; }
+{
+    return CALLBACK_RET_PROCEED;
+}

@@ -1,75 +1,73 @@
-# Servidor FTPS
+# FTPS server
 
-Joaquín Jiménez López de Castro. Redes 2. Grupo 2312. joaquin.jimenezl@estudiante.uam.es
+FTP server with secure TLS connection written in C.
 
-Versión extendida del README.md: WIKI.md (adjunto). También en https://git.eps.uam.es/joaquin.jimenezl/ftps_server/-/wikis/Memoria-Trabajo-Tutelado y en la página principal si generado por doxygen.
+## Server use instructions
 
-## Instrucciones de Uso del Servidor
+### Facility
 
-### Instalación
+Attached to this project is an installer, _install.sh_ that performs the following operations:
 
-Adjunto a este proyecto se encuentra un instalador, _install.sh_ que realiza las siguientes operaciones:
+- Install _authbind_ if it is not installed yet. This program is mandatory for server operation.
+- Configure _authbind_ so that the user who runs the installer can access ports 20 and 21 in the execution of the binary.
+- Install _doxygen_ and _xDot_ optionally to generate the documentation _Doxygen_ of the project.
+- Compile the binary. It will be saved in _bin/ftps_server_
+- Generate server certificates. It will be allowed to create at that time using _OpenSSL_ the certificate X.509 and corresponding private password. They will be saved in _certificates/_. Certificates already created can be used, but the private key cannot be protected with a password.
+- Optionally, the installer will allow installing an FTPS client (_lftp_) and configure it to be compatible with the server. This will include creating client certificate and key. The resulting configurations will be stored in /etc/lftp.conf, adding at the end of the file, and can be modified later if desired.
 
-- Instalar _authbind_ si no está instalado todavía. Este programa es obligatorio para el funcionamiento del servidor.
-- Configurar _authbind_ para que el usuario que ejecuta el instalador pueda acceder a los puertos 20 y 21 en la ejecución del binario.
-- Instalar _doxygen_ y _xdot_ opcionalmente para generar la documentación _doxygen_ del proyecto.
-- Compilar el binario. Se guardará en _bin/ftps_server_
-- Generar certificados del servidor. Se permitirán crear en ese momento usando _openssl_ el certificado X.509 y clave privada correspondiente del servidor. Se guardarán en _certificates/_. Se pueden utilizar certificados ya creados, pero la clave privada no puede estar protegida con una contraseña.
-- Opcionalmente, el instalador permitirá instalar un cliente ftps (_lftp_) y configurarlo para que sea compatible con el servidor. Esto incluirá crear certificado y clave privada del cliente. Las configuraciones resultantes se almacenarán en /etc/lftp.conf, añadiéndose al final del fichero, y podrán modificarse más adelante si se desea. 
+### Makefile targets
 
-### Targets Makefile
+In the project is a _makefile_ file that allows you to execute the following functionalities:
 
-En el proyecto se encuentra un fichero de _Makefile_ que permite ejecutar las siguientes funcionalidades: 
-
-	~$ make 			    # Genera todos los ejecutables
-	~$ make clean			# Elimina todos los ejcutables, librerías generables dinámicamente y documentación
-	~$ make clear			# Igual que clean pero no borra ejecutables
-	~$ make doc 			# Genera la documentación en formato doxygen en el doc a partir del fichero Doxyfile proporcionado
-	~$ make runv			# Correr con valgrind, solo debug. Solo sirve si se ha definido la macro DEBUG en compilación.
-	~$ make runv_authbind	# Correr el programa usando valgrind. Funciona en compilación normal.
+	~$ make 			    # Generates all executables
+	~$ make clean			# Eliminates all executable, dynamically generetable libraries and documentation
+	~$ make clear			# Just like clean but do not delete executable
+	~$ make doc 			# Generates the documentation in doxygen format
+	~$ make runv			# Run with Valgrind, only debug. It only serves if the debug macro has been defined.
+	~$ make runv_authbind	# Run the program using valgrind. It works in normal compilation.
 
 ### Configuración del Servidor
 
-En el fichero _server.conf_ se encuentran las distintas opciones de configuración de inicio del servidor. A continuación se muestran dichos campos:
+In the _server.conf_ file are the different server start configuration options.These fields are shown below:
 
-- server_root: Directorio donde se almacenan los ficheros públicos del servidor.
+- server_root: Directory where public server files are stored.
 
-- max_passive_ports: Número maximo de puertos que se pueden abrir en modo pasivo.
+- max_passive_ports: Maximum number of ports that can be opened in passive mode.
 
-- max_sessions: Número maximo de sesiones FTP concurrentes.
+- max_sessions: Maximum number of concurrent FTP sessions.
 
-- ftp_user: Usuario FTP, dejar vacio si se quieren usar los credenciales del usuario que lanza el servidor (necesario sudo) 
+- ftp_user: FTP user, leave empty if you want to use the user credentials that launches the server (necessary sudo)
 
-- ftp_host: Direccion IP de despliegue o nombre del host de despliegue
+- ftp_host: IP direction of deployment or name of the deployment host
 
-- default_type: Tipo de transmision de datos por defecto, valores posibles 'ascii' y 'binary' 
+- default_type: Type of default data transmission, possible values 'ASCII' and 'Binary'
 
-- certificate_path: Path al fichero con clave privada
+- certificate_path: Path to the file with a private key
 
-- private_key_path: Path al fichero de certificado x.509
+- private_key_path: Path to the certificate file x.509
 
-- daemon_mode: Indica si se quiere ejecutar en modo demonio. 0 si falso, cualquier otro numero si verdadero
+- daemon_mode: Indicate if you want to run in demon mode.0 Yes false, any other number if true
 
-### Ejecución del Servidor y Test con lftp
+### Server execution and test with lftp
 
-Al finalizar la instalación (ver 4.1) ya se puede correr el programa normalmente con:
+At the end of the installation you can already run the program normally with:
 
 	$ bin/ftps_server
 
-A no ser que en _server.conf_ no se haya indicado un nombre de usuario, en cuyo caso es:
+Unless in _Server.conf_ a username has not been indicated, in which case it is:
 
 	$ sudo bin/ftps_server
 
-Para así poder leer el fichero /etc/shadow y acceder al hash de la contraseña del usuario que ejecuta el programa. Una vez recogido, se droperan los permisos de root.
+In order to read the /etc /shadow file and access the user's password hash running the program.Once collected, root permissions will be removed.
 
-Hay pocos clientes compatibles con la arquitectura de autenticación de este servidor, es por ello que el instalador ofrece la instalación de un cliente ftps (_lftp_) compatible con este servidor y la configuración del mismo para que cifre la conexión de control y de datos.
+There are few customers compatible with the authentication architecture of this server, which is why the installer offers the installation of a FTPS (_lftp_) customer compatible with this server and the configuration of the same to encrypt the control and data connection.
 
-Ya instalado y configurado el cliente y lanzado el servidor, un posible ejemplo de uso es el siguiente:
+Already installed and configured the customer and launched the server, a possible example of use is as follows:
 
-	$ lftp johacks@localhost // Se conectará al servidor desplegado en localhost con nombre de usuario johacks
-	Clave: 
+	$ lftp johacks@localhost // It will connect to the user in localhost with username Johacks
+	Password: 
 	lftp johacks@localhost:~> debug                            
-	lftp johacks@localhost:~> source /etc/lftp.conf // Asegurarse de que se utiliza el fichero de configuración
+	lftp johacks@localhost:~> source /etc/lftp.conf // Ensure that the configuration file is used
 	lftp johacks@localhost:~> ls
 	---- Conectándose a localhost (127.0.0.1) port 21
 	<--- 220 Bienvenido a mi servidor FTP

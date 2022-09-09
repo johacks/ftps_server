@@ -1,84 +1,83 @@
 /**
  * @file utils.c
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
- * @brief Implementacion de funciones de utilidad varias
+ * @brief Implementation of various utility functions
  * @version 1.0
- * @date 07-04-2020
- * 
+ * @date 04-07-2020
+ *
  */
 
 #include "utils.h"
 
 /**
- * @brief Tamaño de un fichero dado su descriptor
- * 
- * @param fd descriptor del fichero
- * @return size_t tamaño
+ * @brief Size of a file given its descriptor
+ *
+ * @param fd file descriptor
+ * @return size_t size
  */
 size_t file_size(int fd)
 {
     struct stat st;
-    if ( fd < 0 || fstat(fd, &st) == -1 )
+    if (fd < 0 || fstat(fd, &st) == -1)
         return -1;
     return st.st_size;
 }
 
 /**
- * @brief Indica el sistema operativo en uso
- * 
- * @return char* 
+ * @brief Indicates the operating system in use
+ *
+ * @return char*
  */
 char *operating_system()
 {
-    #ifdef __linux__
+#ifdef __linux__
     return "Linux";
-    #elif __FreeBSD__
+#elif __FreeBSD__
     return "FreeBSD";
-    #elif __unix || __unix__
+#elif __unix || __unix__
     return "Unix";
-    #else
+#else
     return "Other";
-    #endif
+#endif
 }
 
 /**
- * @brief Tamaño de un fichero dado su nombre
- * 
- * @param path Nombre del fichero
- * @return size_t tamaño
+ * @brief Size of a file given its name
+ *
+ * @param path Name of the file
+ * @return size_t size
  */
 size_t name_file_size(char *path)
 {
     struct stat st;
-    if ( !path || stat(path, &st) == -1 )
+    if (!path || stat(path, &st) == -1)
         return -1;
     return st.st_size;
 }
 
 /**
- * @brief Str es un numero entero
- * 
+ * @brief Str is an integer
+ *
  * @param str String
- * @param len Tamaño a parsear, si se quiere llamar a strlen, poner menor que 0
- * @return int 
+ * @param len Size to parse, if you want to call strlen, put less than 0
+ * @return int
  */
 int is_number(char *str, int len)
 {
     len = (len < 0) ? strlen(str) : len;
-    for ( int i = 0; i < len; i++ )
-        if ( !isdigit(str[i]) )
+    for (int i = 0; i < len; i++)
+        if (!isdigit(str[i]))
             return 0;
     return 1;
 }
 
-/* SEMAFOROS Y MEMORIA COMPARTIDA */
-
+/*SEMAPHORES AND SHARED MEMORY*/
 /**
- * @brief Cierra un conjunto de semaforos
- * 
- * @param n_sem Numero de semaforos a cerrar
- * @param ... Sucesion de semaforos y sus respectivos nombres. Poner NULL en cualquiera de ellos si se quiere evitar close/unlink
- * @return int 
+ * @brief Closes a set of semaphores
+ *
+ * @param n_sem Number of semaphores to close
+ * @param ... Sequence of semaphores and their respective names. Put NULL in any of them if you want to avoid close/unlink
+ * @return int
  */
 int close_semaphores(int n_sem, ...)
 {
@@ -105,14 +104,14 @@ int close_semaphores(int n_sem, ...)
 }
 
 /**
- * @brief Cierra un conjunto de semaforos
- * 
- * @param n_shm Numero de fichero de memoria compartida a cerrar
- * @param ... Sucesion de tripletos estructura, tamaño de estructura y nombre
- * @return int 
+ * @brief Closes a set of semaphores
+ *
+ * @param n_shm Shared memory file number to close
+ * @param ... Sequence of structure triplets, structure size and name
+ * @return int
  */
 int close_shm(int n_shm, ...)
-{   
+{
     va_list param;
     void *mapped = NULL;
     size_t size;
@@ -120,11 +119,11 @@ int close_shm(int n_shm, ...)
     n_shm *= 3;
 
     va_start(param, n_shm);
-    for (int i = n_shm; i > 0; i-= 3)
+    for (int i = n_shm; i > 0; i -= 3)
     {
         mapped = va_arg(param, void *);
         size = va_arg(param, size_t);
-        name = va_arg(param, char *); 
+        name = va_arg(param, char *);
         if (mapped)
             munmap(mapped, size);
         if (name)
@@ -136,67 +135,67 @@ int close_shm(int n_shm, ...)
 }
 
 /**
- * @brief Crea un fichero shm y mapea en el buffer mapped
- * 
- * @param name Nombre del ficherp
- * @param size Tamaño del mapeo
- * @param mapped Buffer donde colocar la estructura
- * @return int descriptor de fichero del mapeo
+ * @brief Create a shm file and map into the mapped buffer
+ *
+ * @param name Name of the file
+ * @param size Size of the mapping
+ * @param mapped Buffer where to place the structure
+ * @return int mapping file descriptor
  */
 int create_shm(char *name, size_t size, void **mapped)
 {
     int fd;
 
-    /* Abrir fichero de memoria compartida */
-	if( (fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR)) == -1 )
-		return -1;
-
-	/* Redimensiona el tamaño de la zona de memoria compartida al de la estructura serverinfo */
-	if( ftruncate(fd, size) < 0)
-    {
-		close_shm(1, NULL, 0, name);
+    /*Open shared memory file*/
+    if ((fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR)) == -1)
         return -1;
-	}
-	/* Enlaza la memoria compartida al proceso actual */
-	(*mapped) = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if((*mapped) == MAP_FAILED) 
+
+    /*Resize the size of the shared memory area to that of the serverinfo structure*/
+    if (ftruncate(fd, size) < 0)
     {
         close_shm(1, NULL, 0, name);
         return -1;
-	}
+    }
+    /*Bind the shared memory to the current process*/
+    (*mapped) = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if ((*mapped) == MAP_FAILED)
+    {
+        close_shm(1, NULL, 0, name);
+        return -1;
+    }
 
     return fd;
 }
 
 /**
- * @brief Abre un fichero de memoria compartida
- * 
- * @param name Nombre del fichero
- * @param size Tamaño del fichero
+ * @brief Opens a shared memory file
+ *
+ * @param name Name of the file
+ * @param size File size
  * @param mapped Buffer
- * @return int 
+ * @return int
  */
 int open_shm(char *name, size_t size, void **mapped)
 {
     int fd_shm;
 
-    /* Abrir memoria compartida y obtener su descriptor */
-	if( (fd_shm = shm_open(name, O_RDWR, 0)) == -1 )
-		return -1;
+    /*Open shared memory and get its descriptor*/
+    if ((fd_shm = shm_open(name, O_RDWR, 0)) == -1)
+        return -1;
 
-	/* Enlaza la memoria compartida al proceso actual */
-	*mapped = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0);
-	if((*mapped) == MAP_FAILED)
-		return -1;
-    return fd_shm;    
+    /*Bind the shared memory to the current process*/
+    *mapped = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0);
+    if ((*mapped) == MAP_FAILED)
+        return -1;
+    return fd_shm;
 }
 
 /**
- * @brief Crea un semaforo
- * 
- * @param name Nombre del semaforo
- * @param initial_val Valor inicial del semaforo
- * @return sem_t* (NULL si fallo)
+ * @brief Create a semaphore
+ *
+ * @param name Number of the semaphore
+ * @param initial_val Inicial value of the semaphore
+ * @return sem_t *(NULL if you fail)
  */
 sem_t *create_sem(char *name, int initial_val)
 {
@@ -207,10 +206,10 @@ sem_t *create_sem(char *name, int initial_val)
 }
 
 /**
- * @brief Abre un semaforo
- * 
- * @param name Nombre del semaforo
- * @return sem_t* (NULL si fallo)
+ * @brief Abre a semaphore
+ *
+ * @param name Number of the semaphore
+ * @return sem_t *(NULL if you fail)
  */
 sem_t *open_sem(char *name)
 {
@@ -220,52 +219,51 @@ sem_t *open_sem(char *name)
     return sem;
 }
 
-/* LOGGING Y SALIDA ESTANDAR */
+/*LOGGING AND STANDARD OUTPUT*/
 
-int _use_syslog = 0; /*!< Usar o no systemlog para imprimir los mensajes */
-int _use_std = 1; /*!< Usar o no salida estandar para imprimir los mensajes */
-
+int _use_syslog = 0; /*!< Whether or not to use systemlog to print messages*/
+int _use_std = 1;    /*!< Whether or not to use standard output to print messages*/
 /**
- * @brief Indica la configuracion a utilizar en el logueo de mensajes
- * 
- * @param use_std Los mensajes se imprimen en salida estandar
- * @param use_syslog Los mensajes se imprimen en el log del sistema 
- * @param syslog_ident Especificar identificador en el log del sistema
+ * @brief Indicates the configuration to use in message logging
+ *
+ * @param use_std Messages are printed to standard output
+ * @param use_syslog Messages are printed to the system log
+ * @param syslog_ident Specify identifier in the system log
  */
 void set_log_conf(int use_std, int use_syslog, char *syslog_ident)
 {
     _use_std = use_std;
     _use_syslog = use_syslog;
-    if ( use_syslog )
+    if (use_syslog)
         openlog(syslog_ident, LOG_PID, LOG_FTP);
     return;
 }
 
 /**
- * @brief Loguea usando los argumentos
- * 
- * @param priority Prioridad en syslog si se va a usar syslog
- * @param format Cadena formateada
- * @param param Lista de argumentos
+ * @brief Log in using the arguments
+ *
+ * @param priority Priority in syslog if syslog is to be used
+ * @param format Formatted string
+ * @param param Argument list
  */
 void vflog(int priority, char *format, va_list param)
 {
-    if ( _use_std )
+    if (_use_std)
         vprintf(format, param);
-    if ( _use_syslog )
+    if (_use_syslog)
         vsyslog(priority, format, param);
     return;
 }
 
 /**
- * @brief Loguea usando los argumentos
- * 
- * @param priority Prioridad en syslog si se va a usar syslog
- * @param format Cadena formateada
+ * @brief Log in using the arguments
+ *
+ * @param priority Priority in syslog if syslog is to be used
+ * @param format Formatted string
  */
 void flog(int priority, char *format, ...)
 {
-    if ( !format )
+    if (!format)
         return;
     va_list param;
 
@@ -276,14 +274,14 @@ void flog(int priority, char *format, ...)
 }
 
 /**
- * @brief Imprime la cadena formateada de argumentos variables y cierra el proceso con exit(1)
- * 
- * @param format Cadena de caracteres formateada
- * @param ... Parametros
+ * @brief Prints the formatted string of variable arguments and closes the process with exit(1)
+ *
+ * @param format Formatted character string
+ * @param ... Parameters
  */
-void errexit(char* format, ...)
+void errexit(char *format, ...)
 {
-    if ( !format )
+    if (!format)
         return;
     va_list param;
 

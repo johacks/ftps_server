@@ -8,5 +8,6 @@
         "paths.h": "c",
         "syslog.h": "c",
         "tlse.c": "cpp"
-    }
+    },
+    "commentTranslate.targetLanguage": "en"
 }

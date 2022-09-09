@@ -1,12 +1,12 @@
 /**
  * @file ftp_session.h
  * @author Joaquín Jiménez López de Castro (joaquin.jimenezl@estudiante.uam.es)
- * @brief Contiene la estructura ftp_session y operaciones asociadas a esta. Mantiene información de la sesión ftp
+ * @brief Contains the ftp_session structure and operations associated with it. Keep ftp session information
  * @version 1.0
- * @date 13-04-2020
- * 
+ * @date 04-13-2020
+ *
  * @copyright Copyright (c) 2020
- * 
+ *
  */
 
 #ifndef FTP_SESSION_H
@@ -14,82 +14,82 @@
 
 #include "utils.h"
 #include "ftp_files.h"
-#define MAX_PATH XL_SZ + 1 /*!< Tamaño máximo del path actual */
-#define MAX_ATTRIBUTES SMALL_SZ /*!< Número máximo de atributos dinámicos de la sesión */
-#define MAX_ATTRIBUTE_NAME SMALL_SZ /*!< Tamaño máximo del nombre de un atributo dinámico */
-#define POWER_OF_TWO(x) (((uintptr_t) 1) << (x)) /*!< Elevar al cuadrado */
-#define ATTR_NOT_FOUND POWER_OF_TWO(8*sizeof(uintptr_t)-1)*-1 /*!< Valor minimo de uintptr_t */ 
+#define MAX_PATH XL_SZ + 1                                          /*!< Maximum size of the current path*/
+#define MAX_ATTRIBUTES SMALL_SZ                                     /*!< Maximum number of dynamic attributes of the session*/
+#define MAX_ATTRIBUTE_NAME SMALL_SZ                                 /*!< Maximum size of a dynamic attribute name*/
+#define POWER_OF_TWO(x) (((uintptr_t)1) << (x))                     /*!< Square*/
+#define ATTR_NOT_FOUND POWER_OF_TWO(8 * sizeof(uintptr_t) - 1) * -1 /*!< Minimum value of uintptr_t*/
 
 /**
- * @brief Define un atributo mediante su nombre y valor, que posiblemente
- * sera o un puntero, o un valor estatico, como un entero
+ * @brief Defines an attribute by its name and value, possibly
+ * will be either a pointer, or a static value, such as an integer
  */
 typedef struct _attribute
 {
-    char name[MAX_ATTRIBUTE_NAME]; /*!< Nombre del atributo */
-    uintptr_t val; /*!< Puede ser o un puntero, o un entero con signo de 8 bytes, segun convenga */
-    char freeable; /*!< Indica si el atributo puede liberarse */
-    short expire; /*!< Indica por cuantas peticiones a control pasa antes de desaparecer de la sesion */
+    char name[MAX_ATTRIBUTE_NAME]; /*!< Attribute name*/
+    uintptr_t val;                 /*!< Can be either a pointer, or an 8-byte signed integer, as appropriate*/
+    char freeable;                 /*!< Indicates if the attribute can be freed*/
+    short expire;                  /*!< Indicates for how many requests to control passes before disappearing from the session*/
 } attribute;
 
 /**
- * @brief Informacion de sesion que se mantiene entre peticiones al puerto de control
- * 
+ * @brief Session information that is maintained between requests to the control port
+ *
  */
 typedef struct _session_info
 {
-    data_conn *data_connection; /*!< Almacena informacion de la conexion de datos actual */
-    int ascii_mode; /*!< Indica que se hace la transmision de ficheros en modo ascii */
-    int authenticated; /*!< Indica si el usuario de la sesion ya ha sido autenticado correctamente */
-    int secure; /*!< Indica si la sesion esta en modo seguro */
-    int pbsz_sent; /*!< Indica que ya se ha enviado el comando pbsz */
-    TLS *context; /*!< Contexto TLS de sesion */
-    char *current_pkey; /*!< Clave  */
-    char current_dir[MAX_PATH]; /*!< Directorio actual del usuario de la sesion */
-    int n_attributes; /*!< Cantidad de atributos actualmente en sesion */
-    attribute attributes[MAX_ATTRIBUTES]; /*!< Atributos variables de la sesion */
-    int clt_fd; /*!< Descriptor de fichero del cliente (conexion de control) */
+    data_conn *data_connection;           /*!< Stores information about the current data connection*/
+    int ascii_mode;                       /*!< Indicates that the file transmission is done in ascii mode*/
+    int authenticated;                    /*!< Indicates if the session user has already been successfully authenticated*/
+    int secure;                           /*!< Indicates if the session is in safe mode*/
+    int pbsz_sent;                        /*!< Indicates that the pbsz command has already been sent*/
+    TLS *context;                         /*!< TLS session context*/
+    char *current_pkey;                   /*!< Clave*/
+    char current_dir[MAX_PATH];           /*!< Current directory of the session user*/
+    int n_attributes;                     /*!< Number of attributes currently in session*/
+    attribute attributes[MAX_ATTRIBUTES]; /*!< Session variable attributes*/
+    int clt_fd;                           /*!< Client file descriptor (control connection)*/
 } session_info;
 
 /**
- * @brief Añadir un atributo
- * 
- * @param session Sesion FTP
- * @param name Nombre del atributo
- * @param val Valor del atributo, posiblemente un puntero o entero
- * @param freeable Indica si el atributo puede liberarse con una simple llamada a free
- * @param expiration Indica cuantas peticiones de control aguanta el atributo
- * @return uintptr_t Si el atributo ya estaba y no se puede liberar, devuelve el valor anterior,
- *         si no, devuelve ATTR_NOT_FOUND
+ * @brief Add an attribute
+ *
+ * @param session FTP session
+ * @param name Name of the attribute
+ * @param val Value of the attribute, possibly a pointer or integer
+ * @param freeable Indicates whether the attribute can be freed with a simple call to free
+ * @param expiration Indicates how many control requests the attribute can hold
+ * @return uintptr_t If the attribute was already there and cannot be freed, it returns the previous value,
+ * else return ATTR_NOT_FOUND
  */
 uintptr_t set_attribute(session_info *session, char *name, uintptr_t val, char freeable, short expiration);
 
 /**
- * @brief Recoger un atributo
- * 
- * @param session Sesion FTP
- * @param name Nombre del atributo
- * @return uintptr_t Valor del atributo o ATTR_NOT_FOUND
+ * @brief Collect an attribute
+ *
+ * @param session FTP session
+ * @param name Name of the attribute
+ * @return uintptr_t attribute value or ATTR_NOT_FOUND
  */
 uintptr_t get_attribute(session_info *session, char *name);
 
 /**
- * @brief Libera aquellos atributos que se pueden liberar con free
- * 
- * @param session Sesion FTP
- * @return int Numero de atributos liberados
+ * @brief Free those attributes that can be freed with free
+ *
+ * @param session FTP session
+ * @return int Number of released attributes
  */
 int free_attributes(session_info *session);
 
 /**
- * @brief Inicializa una sesion
- * 
- * @param session Sesion FTP
- * @param previous_session Sesion FTP a anterior de la que se heredan los atributos
+ * @brief Initialize a session
+ *
+ * @param session FTP session
+ * @param previous_session Previous FTP session from which the attributes are inherited
  */
 void init_session_info(session_info *session, session_info *previous_session);
 
-/* ATRIBUTOS UTILIZADOS */
-#define USERNAME_ATTR "usr" /*!< Nombre de usuario de un comando USER */
-#define RENAME_FROM_ATTR "rnfr" /*!< Nombre de fichero a renombrar */
+/*USED ​​ATTRIBUTES*/
+#define USERNAME_ATTR "usr"     /*!< Username of a USER command*/
+#define RENAME_FROM_ATTR "rnfr" /*!< Filename to rename*/
 #endif
