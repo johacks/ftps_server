@@ -1,0 +1,9 @@
+<map id="include/ftp_files.h" name="include/ftp_files.h">
+<area shape="rect" id="node1" title="Manipulation of file, paths and data connection." alt="" coords="274,5,397,31"/>
+<area shape="rect" id="node2" href="$ftp__session_8h.html" title="Contains the ftp_session structure and operations associated with it. Keep ftp session information." alt="" coords="186,79,330,104"/>
+<area shape="rect" id="node4" href="$callbacks_8c.html" title="Defines the callbacks corresponding to each command." alt="" coords="38,225,148,251"/>
+<area shape="rect" id="node5" href="$ftps__server_8c.html" title="FTP server implementation." alt="" coords="281,225,398,251"/>
+<area shape="rect" id="node7" href="$ftp__files_8c.html" title="Manipulation of paths, files and directories." alt="" coords="428,79,526,104"/>
+<area shape="rect" id="node3" href="$callbacks_8h.html" title="Definition of callbacks associated with ftp commands." alt="" coords="169,152,302,177"/>
+<area shape="rect" id="node6" href="$ftp__session_8c.html" title="Implements ftp session handling functions." alt="" coords="23,152,144,177"/>
+</map>

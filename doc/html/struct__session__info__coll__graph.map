@@ -1,0 +1,5 @@
+<map id="_session_info" name="_session_info">
+<area shape="rect" id="node1" title="Session information that is maintained between requests to the control port." alt="" coords="65,93,166,119"/>
+<area shape="rect" id="node2" href="$struct__data__conn.html" title="Defines the information of an FTP data connection." alt="" coords="5,5,95,31"/>
+<area shape="rect" id="node3" href="$struct__attribute.html" title="Defines an attribute by its name and value, possibly will be either a pointer, or a static value,..." alt="" coords="143,5,219,31"/>
+</map>

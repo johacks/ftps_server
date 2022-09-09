@@ -1,0 +1,6 @@
+<map id="include/authenticate.h" name="include/authenticate.h">
+<area shape="rect" id="node1" title="Prototypes of functions related to user authentication." alt="" coords="137,5,286,31"/>
+<area shape="rect" id="node2" href="$authenticate_8c.html" title="Authentication services." alt="" coords="5,79,132,104"/>
+<area shape="rect" id="node3" href="$callbacks_8c.html" title="Defines the callbacks corresponding to each command." alt="" coords="156,79,267,104"/>
+<area shape="rect" id="node4" href="$ftps__server_8c.html" title="FTP server implementation." alt="" coords="291,79,409,104"/>
+</map>

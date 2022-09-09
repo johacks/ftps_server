@@ -1,0 +1,8 @@
+<map id="_data_thread_args" name="_data_thread_args">
+<area shape="rect" id="node1" title="Defines the data that is passed to a data thread." alt="" coords="103,181,232,207"/>
+<area shape="rect" id="node2" href="$struct__serverconf.html" title="Contains general information about the server, which includes the information parsed in server...." alt="" coords="5,93,92,119"/>
+<area shape="rect" id="node3" href="$struct__session__info.html" title="Session information that is maintained between requests to the control port." alt="" coords="117,93,218,119"/>
+<area shape="rect" id="node4" href="$struct__data__conn.html" title="Defines the information of an FTP data connection." alt="" coords="57,5,147,31"/>
+<area shape="rect" id="node5" href="$struct__attribute.html" title="Defines an attribute by its name and value, possibly will be either a pointer, or a static value,..." alt="" coords="195,5,271,31"/>
+<area shape="rect" id="node6" href="$struct__request__info.html" title="Information associated with a request and its response." alt="" coords="242,93,341,119"/>
+</map>

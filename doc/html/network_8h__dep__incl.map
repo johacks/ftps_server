@@ -1,0 +1,12 @@
+<map id="include/network.h" name="include/network.h">
+<area shape="rect" id="node1" title="Declarations and inclusion of useful libraries for network programming in C in a UNIX environment." alt="" coords="221,5,343,31"/>
+<area shape="rect" id="node2" href="$config__parser_8h_source.html" title=" " alt="" coords="41,79,195,104"/>
+<area shape="rect" id="node4" href="$callbacks_8c.html" title="Defines the callbacks corresponding to each command." alt="" coords="5,299,116,324"/>
+<area shape="rect" id="node5" href="$ftps__server_8c.html" title="FTP server implementation." alt="" coords="294,299,411,324"/>
+<area shape="rect" id="node6" href="$ftp__files_8c.html" title="Manipulation of paths, files and directories." alt="" coords="170,152,269,177"/>
+<area shape="rect" id="node7" href="$ftp__files_8h.html" title="Manipulation of file, paths and data connection." alt="" coords="270,79,393,104"/>
+<area shape="rect" id="node10" href="$network_8c.html" title="Network library implementation." alt="" coords="639,79,739,104"/>
+<area shape="rect" id="node3" href="$callbacks_8h.html" title="Definition of callbacks associated with ftp commands." alt="" coords="127,225,261,251"/>
+<area shape="rect" id="node8" href="$ftp__session_8h.html" title="Contains the ftp_session structure and operations associated with it. Keep ftp session information." alt="" coords="394,152,538,177"/>
+<area shape="rect" id="node9" href="$ftp__session_8c.html" title="Implements ftp session handling functions." alt="" coords="441,225,563,251"/>
+</map>

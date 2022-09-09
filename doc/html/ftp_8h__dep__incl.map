@@ -1,0 +1,7 @@
+<map id="include/ftp.h" name="include/ftp.h">
+<area shape="rect" id="node1" title="Contains information about the ftp protocol." alt="" coords="183,5,275,31"/>
+<area shape="rect" id="node2" href="$callbacks_8c.html" title="Defines the callbacks corresponding to each command." alt="" coords="5,79,116,104"/>
+<area shape="rect" id="node3" href="$ftp_8c.html" title="Contains information about the FTP protocol." alt="" coords="141,79,210,104"/>
+<area shape="rect" id="node4" href="$ftp__files_8c.html" title="Manipulation of paths, files and directories." alt="" coords="234,79,333,104"/>
+<area shape="rect" id="node5" href="$ftps__server_8c.html" title="FTP server implementation." alt="" coords="357,79,474,104"/>
+</map>
